@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelado de Dependencias con Dígrafos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ═══ RESET & BASE ══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+
+:root {
+  --bg:      #080d14;
+  --bg2:     #0e1621;
+  --surf:    #111a2b;
+  --surf2:   #162035;
+  --border:  rgba(0,212,170,.15);
+  --teal:    #00d4aa;
+  --teal2:   #00a882;
+  --amber:   #f5a623;
+  --red:     #e85d5d;
+  --purple:  #9d7eff;
+  --text:    #dce6f5;
+  --muted:   #7a8faa;
+  --white:   #ffffff;
+}
+
+html {
+  scroll-snap-type: y proximity;
+  overflow-y: scroll;
+  scroll-behavior: smooth;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  line-height: 1.7;
+}
+
+/* ═══ FIXED UI ══════════════════════════════════════════ */
+#pbar {
+  position: fixed; top:0; left:0; height:3px; width:0;
+  background: linear-gradient(90deg, var(--teal), var(--amber));
+  transition: width .4s ease; z-index:300;
+  box-shadow: 0 0 10px rgba(0,212,170,.5);
+}
+
+/* counter hidden — integrated into nav */
+#counter { display:none; }
+
+#nav {
+  position:fixed; top:10px; right:18px;
+  display:flex; align-items:center; gap:8px; z-index:300;
+  background: rgba(8,13,20,.82);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+#nav-counter {
+  font-family:'IBM Plex Mono',monospace; font-size:11px;
+  color: var(--muted); letter-spacing:.12em; padding: 0 6px;
+  white-space:nowrap;
+}
+#nav-counter em { color:var(--teal); font-style:normal; font-size:13px; }
+.nbtn {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text); padding:6px 16px; border-radius:6px;
+  font-family:'IBM Plex Sans',sans-serif; font-size:12px; font-weight:500;
+  cursor:pointer; transition:all .2s; white-space:nowrap;
+  letter-spacing:.03em;
+}
+.nbtn:hover  { background:var(--teal); color:var(--bg); border-color:var(--teal); }
+.nbtn:disabled { opacity:.22; cursor:not-allowed; pointer-events:none; }
+.nbtn.pri { background:var(--teal); color:var(--bg); border-color:var(--teal); font-weight:700; }
+.nbtn.pri:hover { background:var(--teal2); }
+
+/* speaker label */
+#speaker-tag {
+  position:fixed; top:18px; left:22px; z-index:300;
+  font-family:'IBM Plex Mono',monospace; font-size:11px;
+  color: var(--muted); letter-spacing:.12em;
+  background: rgba(8,13,20,.82);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+#speaker-tag strong { color:var(--teal); }
+
+/* ═══ SLIDE BASE ════════════════════════════════════════ */
+.slide {
+  min-height:100vh;
+  scroll-snap-align:start;
+  display:flex; align-items:flex-start; justify-content:center;
+  padding: 72px 52px 48px;
+  position:relative; overflow:hidden;
+}
+
+/* subtle static dot grid — no animation, no flicker */
+.slide::before {
+  content:'';
+  position:absolute; inset:0;
+  background-image:
+    radial-gradient(circle, rgba(0,212,170,.045) 1px, transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;
+  /* force own compositing layer to avoid repaint-flicker on scroll-snap */
+  will-change: auto;
+  transform: translateZ(0);
+}
+.slide-inner {
+  max-width:1000px; width:100%;
+  position:relative; z-index:1;
+}
+
+/* ═══ TYPOGRAPHY ════════════════════════════════════════ */
+.eyebrow {
+  display:flex; align-items:center; gap:10px;
+  font-family:'IBM Plex Mono',monospace; font-size:11px;
+  font-weight:500; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--teal); margin-bottom:12px;
+}
+.eyebrow::before {
+  content:''; width:28px; height:1px;
+  background:var(--teal); flex-shrink:0;
+}
+
+h1 {
+  font-family:'Playfair Display',serif;
+  font-size:clamp(2.4rem,5vw,4rem); font-weight:900;
+  line-height:1.1; color:var(--white); margin-bottom:22px;
+}
+h1 em { color:var(--teal); font-style:normal; }
+
+h2 {
+  font-family:'Playfair Display',serif;
+  font-size:clamp(1.6rem,3.2vw,2.5rem); font-weight:700;
+  line-height:1.15; color:var(--white); margin-bottom:20px;
+}
+h2 em { color:var(--teal); font-style:normal; }
+
+h3 {
+  font-size:1rem; font-weight:600; color:var(--white); margin-bottom:7px;
+}
+h4 {
+  font-size:.88rem; font-weight:600;
+  font-family:'IBM Plex Mono',monospace; color:var(--teal);
+  letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px;
+}
+p { color:var(--text); font-size:.92rem; font-weight:300; line-height:1.68; margin-bottom:8px; }
+p:last-child { margin-bottom:0; }
+p strong { color:var(--white); font-weight:600; }
+.muted { color:var(--muted); font-size:.85rem; }
+code {
+  font-family:'IBM Plex Mono',monospace;
+  background:rgba(0,212,170,.1); color:var(--teal);
+  border:1px solid rgba(0,212,170,.2);
+  border-radius:4px; padding:1px 7px; font-size:.88em;
+}
+
+/* ═══ LAYOUT HELPERS ════════════════════════════════════ */
+.two-col   { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+.three-col { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.four-col  { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.divider   { height:1px; background:var(--border); margin:16px 0; }
+
+/* ═══ CARDS ═════════════════════════════════════════════ */
+.card {
+  background:var(--surf); border:1px solid var(--border);
+  border-radius:12px; padding:18px 20px; position:relative; overflow:hidden;
+}
+.card.accent::before {
+  content:''; position:absolute; top:0; left:0;
+  width:3px; height:100%; background:var(--teal);
+}
+.card.amber::before { background:var(--amber); }
+.card.red::before   { background:var(--red); }
+.card.purple::before { background:var(--purple); }
+
+.callout {
+  background:rgba(0,212,170,.07); border:1px solid rgba(0,212,170,.25);
+  border-radius:10px; padding:16px 20px;
+}
+.callout.amber { background:rgba(245,166,35,.07); border-color:rgba(245,166,35,.3); }
+.callout.red   { background:rgba(232,93,93,.07);  border-color:rgba(232,93,93,.3); }
+.callout.purple{ background:rgba(157,126,255,.07);border-color:rgba(157,126,255,.3); }
+
+/* ═══ HIGHLIGHT SPANS ═══════════════════════════════════ */
+.hl       { background:rgba(0,212,170,.15); color:var(--teal);  border-radius:3px; padding:1px 6px; font-weight:600; }
+.hl-amb   { background:rgba(245,166,35,.15); color:var(--amber); border-radius:3px; padding:1px 6px; font-weight:600; }
+.hl-red   { background:rgba(232,93,93,.15);  color:var(--red);   border-radius:3px; padding:1px 6px; font-weight:600; }
+.hl-pur   { background:rgba(157,126,255,.15);color:var(--purple);border-radius:3px; padding:1px 6px; font-weight:600; }
+
+/* ═══ TAG ═══════════════════════════════════════════════ */
+.tag {
+  display:inline-block; font-family:'IBM Plex Mono',monospace;
+  font-size:10.5px; font-weight:500; letter-spacing:.07em;
+  padding:3px 10px; border-radius:4px;
+  background:rgba(0,212,170,.12); color:var(--teal); border:1px solid rgba(0,212,170,.2);
+}
+.tag.amb { background:rgba(245,166,35,.1); color:var(--amber); border-color:rgba(245,166,35,.2); }
+
+/* ═══ DEFINITION ROWS ═══════════════════════════════════ */
+.def-row {
+  display:flex; gap:0; border-bottom:1px solid var(--border);
+  padding: 12px 0;
+}
+.def-row:last-child { border-bottom:none; }
+.def-key {
+  min-width:160px; color:var(--muted); font-size:.83rem;
+  padding-right:16px; padding-top:2px;
+}
+.def-val { color:var(--white); font-size:.92rem; font-weight:400; }
+
+/* ═══ CONCEPT PILL ══════════════════════════════════════ */
+.cpill {
+  display:flex; gap:14px; align-items:flex-start;
+  background:var(--surf); border:1px solid var(--border);
+  border-radius:10px; padding:16px 18px;
+  transition: border-color .2s, transform .2s;
+}
+.cpill:hover { border-color:var(--teal); transform:translateX(3px); }
+.cpill-icon {
+  min-width:40px; height:40px; border-radius:8px;
+  background:rgba(0,212,170,.1); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.2rem; flex-shrink:0;
+}
+
+/* ═══ FLOW STEPS ════════════════════════════════════════ */
+.flow { display:flex; flex-direction:column; gap:0; }
+.fstep {
+  display:flex; gap:14px; align-items:flex-start;
+  position:relative; padding-bottom:14px;
+}
+.fstep:last-child { padding-bottom:0; }
+.fstep::after {
+  content:''; position:absolute; left:15px; top:34px; bottom:0;
+  width:2px; background:var(--border);
+}
+.fstep:last-child::after { display:none; }
+.fnum {
+  min-width:32px; height:32px; border-radius:50%;
+  background:rgba(0,212,170,.1); border:1.5px solid var(--teal);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'IBM Plex Mono',monospace; font-size:12px;
+  color:var(--teal); position:relative; z-index:1; flex-shrink:0;
+}
+
+/* ═══ INFO BADGE ════════════════════════════════════════ */
+.ibadge {
+  display:inline-flex; align-items:center; gap:8px;
+  border:1px solid var(--border); border-radius:6px;
+  padding:5px 13px; font-size:.78rem; color:var(--muted);
+  font-family:'IBM Plex Mono',monospace; letter-spacing:.06em;
+}
+.ibadge .dot {
+  width:7px; height:7px; border-radius:50%;
+  background:var(--teal); animation: blink 2s ease infinite;
+}
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.25} }
+
+/* ═══ COVER EXTRAS ══════════════════════════════════════ */
+.cover-accent {
+  position:absolute; right:-120px; top:50%; transform:translateY(-50%);
+  width:520px; height:520px; border-radius:50%;
+  background: radial-gradient(circle, rgba(0,212,170,.06) 0%, transparent 70%);
+  pointer-events:none;
+}
+.toc-list { display:flex; flex-direction:column; gap:7px; padding-left:0; list-style:none; }
+.toc-item {
+  display:flex; align-items:center; gap:12px;
+  font-size:.88rem; color:var(--muted);
+  border-left:2px solid var(--border); padding-left:16px;
+}
+.toc-item .num {
+  font-family:'IBM Plex Mono',monospace; font-size:11px;
+  color:var(--teal); min-width:22px;
+}
+
+/* ═══ FORMULA BOX ═══════════════════════════════════════ */
+.formula-box {
+  background:var(--surf2); border:1px solid rgba(0,212,170,.3);
+  border-radius:10px; padding:18px 24px; text-align:center;
+  position:relative; overflow:hidden;
+}
+.formula-box::after {
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(135deg, rgba(0,212,170,.04) 0%, transparent 60%);
+  pointer-events:none;
+}
+.formula {
+  font-family:'IBM Plex Mono',monospace;
+  font-size:clamp(1.1rem,2.5vw,1.5rem);
+  color:var(--white); letter-spacing:.06em;
+}
+.formula em { color:var(--teal); font-style:normal; }
+.formula sub { font-size:.65em; color:var(--muted); }
+
+/* ═══ VERTEX SHOWCASE ═══════════════════════════════════ */
+.v-showcase {
+  display:flex; gap:10px; justify-content:center;
+  flex-wrap:wrap; margin: 16px 0;
+}
+.v-chip {
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+  background:var(--surf); border:1px solid var(--border);
+  border-radius:10px; padding:10px 14px; min-width:82px;
+  transition: border-color .2s, transform .2s;
+  cursor:default;
+}
+.v-chip:hover { border-color:var(--teal); transform:translateY(-3px); }
+.v-chip .vc-node {
+  width:40px; height:40px; border-radius:50%;
+  background:rgba(0,212,170,.1); border:2px solid var(--teal);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:500;
+  color:var(--white);
+}
+.v-chip .vc-label { font-size:.75rem; color:var(--muted); text-align:center; }
+
+/* ═══ EDGE SHOWCASE ═════════════════════════════════════ */
+.e-showcase { display:flex; flex-direction:column; gap:8px; }
+.e-row {
+  display:flex; align-items:center; gap:12px;
+  background:var(--surf); border:1px solid var(--border);
+  border-radius:8px; padding:12px 16px;
+  transition: border-color .2s;
+}
+.e-row:hover { border-color:var(--teal); }
+.e-arrow {
+  font-family:'IBM Plex Mono',monospace; font-size:13px;
+  color:var(--teal); font-weight:500; min-width:90px;
+}
+.e-meaning { font-size:.88rem; color:var(--text); }
+
+/* ═══ GRAPH SVG WRAPPER ═════════════════════════════════ */
+#graph-wrap {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:14px; padding:12px;
+  position:relative; overflow:hidden;
+}
+#graph-wrap::before {
+  content:'';
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(0,212,170,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,170,.04) 1px, transparent 1px);
+  background-size:36px 36px;
+  border-radius:14px;
+  pointer-events:none;
+  transform: translateZ(0);
+}
+#svg-graph { width:100%; height:auto; display:block; position:relative; z-index:1; }
+
+/* SVG node styles */
+.nc { fill:var(--surf); stroke:var(--teal); stroke-width:2.5; cursor:pointer; }
+.nc:hover, .nc.lit { fill:rgba(0,212,170,.2); filter:drop-shadow(0 0 10px rgba(0,212,170,.6)); }
+.nl {
+  fill:var(--white); font-family:'IBM Plex Mono',monospace;
+  font-size:14px; font-weight:500; text-anchor:middle; dominant-baseline:central;
+  pointer-events:none;
+}
+.el { fill:none; stroke:var(--teal); stroke-width:2.2; opacity:0; pointer-events:none; }
+.el.show { opacity:1; transition: opacity .3s ease; }
+
+/* step buttons */
+#step-row { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+.sbtn {
+  font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:500;
+  padding:7px 14px; border-radius:5px; cursor:pointer; border:1px solid var(--border);
+  background:var(--surf); color:var(--muted); transition:all .2s;
+}
+.sbtn.done   { background:rgba(0,212,170,.12); color:var(--teal); border-color:rgba(0,212,170,.4); }
+.sbtn.active { background:var(--teal); color:var(--bg); border-color:var(--teal); font-weight:700; }
+.sbtn:hover  { border-color:var(--teal); color:var(--teal); }
+
+/* ═══ CYCLE VISUAL ══════════════════════════════════════ */
+.cycle-svg-wrap {
+  background:var(--surf); border:1px solid rgba(232,93,93,.25);
+  border-radius:12px; padding:12px;
+}
+
+/* ═══ GUARANTEE ITEMS ═══════════════════════════════════ */
+.gitem {
+  display:flex; gap:12px; align-items:flex-start;
+  background:var(--surf); border:1px solid var(--border);
+  border-radius:10px; padding:12px 16px; margin-bottom:10px;
+}
+.gitem:last-child { margin-bottom:0; }
+.g-icon {
+  min-width:34px; height:34px; border-radius:7px;
+  display:flex; align-items:center; justify-content:center; font-size:1.1rem;
+  flex-shrink:0;
+}
+.g-icon.teal   { background:rgba(0,212,170,.12);  }
+.g-icon.amber  { background:rgba(245,166,35,.12); }
+.g-icon.purple { background:rgba(157,126,255,.12); }
+
+/* ═══ SLIDE BACKGROUNDS ═════════════════════════════════ */
+.s-cover   { background: radial-gradient(ellipse 90% 70% at 80% 50%, rgba(0,212,170,.06) 0%, transparent 65%), var(--bg); }
+.s-vert    { background: var(--bg); }
+.s-dir     { background: linear-gradient(160deg, var(--bg) 0%, #090e18 100%); }
+.s-graph   { background: var(--bg); }
+.s-ciclos  { background: radial-gradient(ellipse 70% 60% at 25% 70%, rgba(232,93,93,.05) 0%, transparent 65%), var(--bg); }
+
+/* ═══ PULSE RINGS & PATH LINES ═════════════════════════ */
+/* ─── PULSE RINGS — disabled (caused green twinkling) ─── */
+@keyframes pulse-ring { 0%,100%{opacity:0} }
+.pulse-ring { display: none; }
+.pulse-ring.go { animation: none; }
+
+/* Path overlay lines */
+.path-line {
+  fill:none; stroke-width:4; opacity:0; pointer-events:none;
+}
+.path-line.p1 { stroke:var(--teal); filter:drop-shadow(0 0 5px rgba(0,212,170,.7)); }
+.path-line.p2 { stroke:var(--purple); filter:drop-shadow(0 0 5px rgba(157,126,255,.7)); }
+
+/* Path route buttons */
+.rbtn {
+  font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600;
+  padding:7px 16px; border-radius:5px; cursor:pointer; border:1px solid;
+  transition:all .2s;
+}
+.rbtn.teal  { background:rgba(0,212,170,.1); color:var(--teal); border-color:rgba(0,212,170,.4); }
+.rbtn.pur   { background:rgba(157,126,255,.1); color:var(--purple); border-color:rgba(157,126,255,.4); }
+.rbtn.teal:hover  { background:var(--teal); color:var(--bg); }
+.rbtn.pur:hover   { background:var(--purple); color:var(--bg); }
+.rbtn.teal.on  { background:var(--teal); color:var(--bg); }
+.rbtn.pur.on   { background:var(--purple); color:var(--bg); }
+
+/* ═══ FADE-IN ANIMATIONS ════════════════════════════════ */
+.fi { opacity:0; transform:translateY(20px); transition:opacity .55s ease, transform .55s ease; }
+.fi.vis { opacity:1; transform:none; }
+.fi.d1 { transition-delay:.10s; }
+.fi.d2 { transition-delay:.22s; }
+.fi.d3 { transition-delay:.34s; }
+.fi.d4 { transition-delay:.46s; }
+.fi.d5 { transition-delay:.58s; }
+.fi.d6 { transition-delay:.70s; }
+
+/* ═══ INTEGRANTES ROWS ══════════════════════════════════ */
+.integrante-row {
+  display:flex; align-items:center; gap:10px;
+  padding: 5px 0; border-bottom:1px solid var(--border);
+  font-size:.84rem;
+}
+.integrante-row:last-child { border-bottom:none; }
+.int-num {
+  font-family:'IBM Plex Mono',monospace; font-size:10px;
+  color:var(--teal); min-width:20px;
+}
+.int-name { color:var(--text); }
+
+/* ═══ RESPONSIVE + ZOOM PC ══════════════════════════════ */
+@media (max-width:900px) {
+  .two-col, .three-col, .four-col { grid-template-columns:1fr; }
+}
+@media (max-width:750px) {
+  .slide { padding:56px 22px 80px; }
+  h1 { font-size:2.1rem; }
+  h2 { font-size:1.65rem; }
+  .def-key { min-width:120px; }
+}
+/* Zoom 125%+ on PC: relax snap so content doesn't clip */
+@media (min-resolution: 1.25dppx) {
+  html { scroll-snap-type: none; }
+  .slide { min-height: auto; padding-top: 80px; padding-bottom: 60px; }
+}
+/* Zoom 150%+ */
+@media (min-resolution: 1.5dppx) {
+  .slide { padding: 80px 36px 48px; }
+  h2 { font-size: 1.45rem; }
+  p  { font-size: .88rem; }
+  .two-col { gap: 14px; }
+  .card { padding: 14px 16px; }
+  .callout { padding: 12px 16px; }
+}
+</style>
+</head>
+<body>
+
+<div id="pbar"></div>
+<div id="speaker-tag">INTEGRANTE <strong id="sp-num">1</strong></div>
+
+<!-- ╔══════════════════════════════════════════════════════╗
+     ║  DIAPOSITIVA 1 — PORTADA                             ║
+     ╚══════════════════════════════════════════════════════╝ -->
+<section class="slide s-cover" id="s1">
+  <div class="cover-accent"></div>
+  <div class="slide-inner">
+
+    <!-- TOP ROW: materia + docente -->
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:26px; flex-wrap:wrap" class="fi">
+      <div class="ibadge">
+        <span class="dot"></span>
+        FUNDAMENTOS DE COMPUTACIÓN
+      </div>
+      <div class="ibadge" style="border-color:rgba(157,126,255,.3); color:var(--purple)">
+        <span style="width:7px;height:7px;border-radius:50%;background:var(--purple);flex-shrink:0"></span>
+        2DO AÑO · ING. EN COMPUTACIÓN
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr auto; gap:40px; align-items:start">
+
+      <!-- LEFT: título + fórmula + índice -->
+      <div>
+        <h1 class="fi d1">
+          Modelado de<br><em>Dependencias</em><br>entre Tareas
+        </h1>
+
+        <p class="fi d2" style="max-width:480px; font-size:1rem; color:var(--muted); margin-bottom:24px">
+          Representación formal mediante un
+          <strong style="color:var(--white)">dígrafo acíclico G = (V, E)</strong>.
+          Unidad III — Grafos y Árboles.
+        </p>
+
+        <!-- FÓRMULA -->
+        <div class="formula-box fi d3" style="max-width:340px; margin-bottom:24px">
+          <div style="font-size:.7rem; font-family:'IBM Plex Mono',monospace; color:var(--muted); letter-spacing:.15em; margin-bottom:8px">DEFINICIÓN FORMAL</div>
+          <div class="formula"><em>G</em> = (<em>V</em>, <em>E</em>)</div>
+          <div style="display:flex; gap:28px; justify-content:center; margin-top:10px">
+            <div style="text-align:center">
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:.95rem; color:var(--teal)">V</div>
+              <div class="muted" style="font-size:.78rem">Vértices (tareas)</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:'IBM Plex Mono',monospace; font-size:.95rem; color:var(--amber)">E</div>
+              <div class="muted" style="font-size:.78rem">Aristas (dependencias)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ÍNDICE -->
+        <ul class="toc-list fi d4">
+          <li class="toc-item"><span class="num">01</span> Definición formal G = (V, E)</li>
+          <li class="toc-item"><span class="num">02</span> Vértices y aristas en contexto</li>
+          <li class="toc-item"><span class="num">03</span> Dirección y visualización</li>
+          <li class="toc-item"><span class="num">04</span> Construcción paso a paso</li>
+          <li class="toc-item"><span class="num">05</span> Ciclos y garantías del modelo</li>
+        </ul>
+      </div>
+
+      <!-- RIGHT: docente + integrantes + QR -->
+      <div style="display:flex; flex-direction:column; gap:14px; min-width:240px; max-width:280px">
+
+        <!-- Docente -->
+        <div class="card accent fi d2" style="padding:16px 18px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:.15em; margin-bottom:8px">DOCENTE</div>
+          <div style="font-size:.95rem; color:var(--white); font-weight:600; line-height:1.3">Dra. Marianela Soledad<br>Reinhardt</div>
+          <div style="margin-top:6px; font-size:.78rem; color:var(--muted)">Fundamentos de Computación</div>
+        </div>
+
+        <!-- Integrantes -->
+        <div class="card fi d3" style="padding:14px 18px">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:.15em; margin-bottom:10px">INTEGRANTES</div>
+          <div id="integrantes-list" style="display:flex; flex-direction:column; gap:5px">
+            <!-- Se completan con los nombres reales -->
+            <div class="integrante-row">
+              <span class="int-num">01</span>
+              <span class="int-name">— pendiente —</span>
+            </div>
+            <div class="integrante-row">
+              <span class="int-num">02</span>
+              <span class="int-name">— pendiente —</span>
+            </div>
+            <div class="integrante-row">
+              <span class="int-num">03</span>
+              <span class="int-name">— pendiente —</span>
+            </div>
+            <div class="integrante-row">
+              <span class="int-num">04</span>
+              <span class="int-name">— pendiente —</span>
+            </div>
+            <div class="integrante-row">
+              <span class="int-num">05</span>
+              <span class="int-name">— pendiente —</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- QR DESAFÍO -->
+        <div class="card fi d4" style="padding:14px 18px; border-color:rgba(245,166,35,.3); text-align:center">
+          <div style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--amber); letter-spacing:.15em; margin-bottom:10px">⚡ DESAFÍO PREVIO</div>
+          <!-- QR SVG generado con qrcode.js inline -->
+          <div id="qr-wrap" style="background:#fff; border-radius:8px; padding:8px; display:inline-block; margin-bottom:8px">
+            <canvas id="qr-canvas" width="120" height="120"></canvas>
+          </div>
+          <div style="font-size:.75rem; color:var(--muted); line-height:1.5">
+            Escaneá y armá el<br>dígrafo <em style="color:var(--amber)">antes</em> de la exposición
+          </div>
+          <div id="qr-url" style="font-family:'IBM Plex Mono',monospace; font-size:.65rem; color:var(--muted); margin-top:6px; word-break:break-all">
+            <!-- URL se completa al desplegar en Vercel -->
+            challenge.html
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ╔══════════════════════════════════════════════════════╗
+     ║  DIAPOSITIVA 2 — VÉRTICES Y ARISTAS EN CONTEXTO     ║
+     ╚══════════════════════════════════════════════════════╝ -->
+<section class="slide s-vert" id="s2">
+  <div class="slide-inner">
+
+    <div class="eyebrow fi">G = (V, E) — Componentes del grafo</div>
+    <h2 class="fi d1">¿Qué representa cada <em>vértice</em><br>y cada <em>arista</em>?</h2>
+
+    <!-- FORMULA REMINDER -->
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:22px" class="fi d1">
+      <code>G = (V, E)</code>
+      <span style="color:var(--muted); font-size:.85rem">→ donde <strong style="color:var(--white)">V</strong> = tareas del sistema, <strong style="color:var(--amber)">E</strong> = dependencias entre ellas</span>
+    </div>
+
+    <div class="two-col fi d2">
+
+      <!-- VÉRTICES -->
+      <div>
+        <div class="card accent" style="margin-bottom:14px">
+          <h4>⬤ &nbsp;Vértice (nodo) — conjunto V</h4>
+          <p>Cada vértice del grafo <strong>representa una tarea</strong> del sistema.
+          No contiene información sobre el orden: simplemente identifica una actividad que debe realizarse.</p>
+          <p>En este problema, el conjunto de vértices es:</p>
+          <code style="display:block; margin:10px 0; font-size:.9rem; padding:8px 12px; border-radius:6px; background:rgba(0,212,170,.08)">
+            V = { T1, T2, T3, T4, T5 }
+          </code>
+          <p class="muted" style="margin-top:8px">Cinco vértices = cinco tareas distintas que conforman el proceso.</p>
+        </div>
+
+        <!-- SHOWCASE DE VÉRTICES -->
+        <div class="v-showcase fi d3">
+          <div class="v-chip">
+            <div class="vc-node">T1</div>
+            <div class="vc-label">Tarea 1<br><span style="color:var(--teal);font-size:.72rem">fuente</span></div>
+          </div>
+          <div class="v-chip">
+            <div class="vc-node">T2</div>
+            <div class="vc-label">Tarea 2<br><span style="color:var(--teal);font-size:.72rem">fuente</span></div>
+          </div>
+          <div class="v-chip" style="border-color:rgba(245,166,35,.35)">
+            <div class="vc-node" style="border-color:var(--amber)">T3</div>
+            <div class="vc-label">Tarea 3<br><span style="color:var(--amber);font-size:.72rem">convergencia</span></div>
+          </div>
+          <div class="v-chip">
+            <div class="vc-node">T4</div>
+            <div class="vc-label">Tarea 4<br><span style="color:var(--muted);font-size:.72rem">intermedia</span></div>
+          </div>
+          <div class="v-chip" style="border-color:rgba(157,126,255,.35)">
+            <div class="vc-node" style="border-color:var(--purple)">T5</div>
+            <div class="vc-label">Tarea 5<br><span style="color:var(--purple);font-size:.72rem">sumidero</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARISTAS -->
+      <div>
+        <div class="card accent amber" style="margin-bottom:14px">
+          <h4 style="color:var(--amber)">→ &nbsp;Arista dirigida — conjunto E</h4>
+          <p>Cada arista representa la <strong>relación de dependencia</strong> entre dos tareas:
+          indica que una tarea <strong>debe completarse</strong> antes de que pueda comenzar la siguiente.</p>
+          <p>El conjunto de aristas de este problema es:</p>
+          <code style="display:block; margin:10px 0; font-size:.85rem; padding:8px 12px; border-radius:6px; background:rgba(245,166,35,.07); color:var(--amber); border-color:rgba(245,166,35,.2)">
+            E = { (T1,T3), (T2,T3), (T3,T4), (T4,T5) }
+          </code>
+          <p class="muted" style="margin-top:8px">Cuatro aristas = cuatro relaciones de precedencia.</p>
+        </div>
+
+        <!-- SHOWCASE DE ARISTAS -->
+        <div class="e-showcase fi d3">
+          <div class="e-row">
+            <span class="e-arrow">T1 → T3</span>
+            <span class="e-meaning">T1 debe completarse <strong>antes</strong> de iniciar T3</span>
+          </div>
+          <div class="e-row">
+            <span class="e-arrow">T2 → T3</span>
+            <span class="e-meaning">T2 debe completarse <strong>antes</strong> de iniciar T3</span>
+          </div>
+          <div class="e-row">
+            <span class="e-arrow">T3 → T4</span>
+            <span class="e-meaning">T3 debe completarse <strong>antes</strong> de iniciar T4</span>
+          </div>
+          <div class="e-row">
+            <span class="e-arrow">T4 → T5</span>
+            <span class="e-meaning">T4 debe completarse <strong>antes</strong> de iniciar T5</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ╔══════════════════════════════════════════════════════╗
+     ║  DIAPOSITIVA 3 — DIRECCIÓN + VISUALIZACIÓN          ║
+     ╚══════════════════════════════════════════════════════╝ -->
+<section class="slide s-dir" id="s3">
+  <div class="slide-inner">
+
+    <div class="eyebrow fi">Dígrafo — Interpretación semántica</div>
+    <h2 class="fi d1">¿Qué indica la <em>dirección</em>?<br>¿Qué permite <em>visualizar</em>?</h2>
+
+    <div class="two-col fi d2">
+
+      <!-- COLUMNA 1: DIRECCIÓN -->
+      <div>
+        <div class="card accent" style="margin-bottom:16px">
+          <h4>Qué indica la dirección de cada arista</h4>
+          <p>
+            La dirección de una arista <code>Ti → Tj</code> indica que
+            <span class="hl">Ti debe ejecutarse antes que Tj</span>.
+            Es decir, establece un <strong>orden de precedencia obligatorio</strong> entre tareas.
+          </p>
+          <div class="divider"></div>
+          <div class="flow">
+            <div class="fstep">
+              <div class="fnum">1</div>
+              <div>
+                <h3>Relación asimétrica</h3>
+                <p class="muted" style="margin:0">
+                  Si <code>T1 → T3</code> existe, <strong>no</strong> implica que exista <code>T3 → T1</code>.
+                  La dependencia va en un único sentido.
+                </p>
+              </div>
+            </div>
+            <div class="fstep">
+              <div class="fnum">2</div>
+              <div>
+                <h3>Habilitación de inicio</h3>
+                <p class="muted" style="margin:0">
+                  La tarea destino (Tj) <strong>no puede comenzar</strong> hasta que
+                  todas sus predecesoras en el grafo hayan finalizado.
+                </p>
+              </div>
+            </div>
+            <div class="fstep">
+              <div class="fnum">3</div>
+              <div>
+                <h3>Grafo no dirigido = inválido</h3>
+                <p class="muted" style="margin:0">
+                  Sin dirección, el grafo no puede representar que <em>T1 precede a T3</em>
+                  pero no al revés. La dirección es <strong>indispensable</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMNA 2: VISUALIZACIÓN -->
+      <div>
+        <div class="card accent purple" style="margin-bottom:16px">
+          <h4 style="color:var(--purple)">Qué permite visualizar el grafo</h4>
+          <p>
+            El dígrafo no es simplemente una ilustración:
+            es una <strong>herramienta formal que revela</strong> la estructura completa
+            del sistema de tareas de un vistazo.
+          </p>
+        </div>
+
+        <div class="gitem fi d3">
+          <div class="g-icon teal">🔗</div>
+          <div>
+            <h3>Dependencias entre tareas</h3>
+            <p class="muted" style="margin:0">Permite ver con claridad qué tareas dependen de otras y cuáles son independientes entre sí (T1 y T2 no dependen de nadie).</p>
+          </div>
+        </div>
+
+        <div class="gitem fi d4">
+          <div class="g-icon amber">📋</div>
+          <div>
+            <h3>El orden de ejecución posible</h3>
+            <p class="muted" style="margin:0">El grafo exhibe los posibles <strong>órdenes topológicos</strong>: secuencias lineales en que las tareas pueden ejecutarse respetando todas las restricciones.</p>
+          </div>
+        </div>
+
+        <div class="gitem fi d5">
+          <div class="g-icon amber">⚠️</div>
+          <div>
+            <h3>Cuellos de botella</h3>
+            <p class="muted" style="margin:0">Vértices con muchas aristas entrantes (como T3) revelan
+            <strong>puntos críticos</strong> donde convergen múltiples dependencias y que bloquean el avance.</p>
+          </div>
+        </div>
+
+        <div class="gitem fi d6">
+          <div class="g-icon purple">🚦</div>
+          <div>
+            <h3>Paralelismo disponible</h3>
+            <p class="muted" style="margin:0">Las tareas sin aristas entre sí (T1 y T2) pueden ejecutarse <strong>en paralelo</strong>, algo que el grafo evidencia de forma inmediata.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ╔══════════════════════════════════════════════════════╗
+     ║  DIAPOSITIVA 4 — CONSTRUCCIÓN DEL DÍGRAFO            ║
+     ╚══════════════════════════════════════════════════════╝ -->
+<section class="slide s-graph" id="s4">
+  <div class="slide-inner">
+
+    <div class="eyebrow fi">Modelo visual</div>
+    <h2 class="fi d1">Construcción del <em>dígrafo</em><br>paso a paso</h2>
+
+    <!-- SVG GRAPH -->
+    <div id="graph-wrap" class="fi d2">
+      <svg id="svg-graph" viewBox="0 0 860 290" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0,10 3.5,0 7" fill="#00d4aa"/>
+          </marker>
+          <marker id="arr-p1" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0,10 3.5,0 7" fill="#00d4aa"/>
+          </marker>
+          <marker id="arr-p2" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0,10 3.5,0 7" fill="#9d7eff"/>
+          </marker>
+          <filter id="glow-f" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="5" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- Nodes sit directly on the graph background -->
+        <!-- No pulse rings - removed to prevent rendering artifacts -->
+
+        <!-- PATH OVERLAY LINES (ruta T1→T5, color teal) -->
+        <line id="ov1-13" class="path-line p1" x1="152" y1="98"  x2="338" y2="170" marker-end="url(#arr-p1)"/>
+        <line id="ov1-34" class="path-line p1" x1="428" y1="180" x2="592" y2="180" marker-end="url(#arr-p1)"/>
+        <line id="ov1-45" class="path-line p1" x1="668" y1="180" x2="752" y2="180" marker-end="url(#arr-p1)"/>
+
+        <!-- PATH OVERLAY LINES (ruta T2→T5, color purple) -->
+        <line id="ov2-23" class="path-line p2" x1="152" y1="198" x2="338" y2="185" marker-end="url(#arr-p2)"/>
+        <line id="ov2-34" class="path-line p2" x1="428" y1="180" x2="592" y2="180" marker-end="url(#arr-p2)"/>
+        <line id="ov2-45" class="path-line p2" x1="668" y1="180" x2="752" y2="180" marker-end="url(#arr-p2)"/>
+
+        <!-- BASE EDGES -->
+        <line id="e13" class="el" x1="152" y1="98"  x2="338" y2="170" marker-end="url(#arr)"/>
+        <line id="e23" class="el" x1="152" y1="198" x2="338" y2="185" marker-end="url(#arr)"/>
+        <line id="e34" class="el" x1="428" y1="180" x2="592" y2="180" marker-end="url(#arr)"/>
+        <line id="e45" class="el" x1="668" y1="180" x2="752" y2="180" marker-end="url(#arr)"/>
+
+        <!-- EDGE LABELS -->
+        <text id="lbl13" font-size="10" fill="#8a9ab5" text-anchor="middle" x="248" y="123" opacity="0" font-family="IBM Plex Mono,monospace">precede a</text>
+        <text id="lbl23" font-size="10" fill="#8a9ab5" text-anchor="middle" x="248" y="203" opacity="0" font-family="IBM Plex Mono,monospace">precede a</text>
+        <text id="lbl34" font-size="10" fill="#8a9ab5" text-anchor="middle" x="512" y="167" opacity="0" font-family="IBM Plex Mono,monospace">precede a</text>
+        <text id="lbl45" font-size="10" fill="#8a9ab5" text-anchor="middle" x="712" y="167" opacity="0" font-family="IBM Plex Mono,monospace">precede a</text>
+
+        <!-- NODES -->
+        <g id="n1" style="opacity:0;transition:opacity .4s">
+          <circle class="nc" cx="112" cy="98"  r="38"/>
+          <text class="nl" x="112" y="98">T1</text>
+        </g>
+        <g id="n2" style="opacity:0;transition:opacity .4s">
+          <circle class="nc" cx="112" cy="198" r="38"/>
+          <text class="nl" x="112" y="198">T2</text>
+        </g>
+        <g id="n3" style="opacity:0;transition:opacity .4s">
+          <circle class="nc" cx="384" cy="178" r="38" style="stroke:var(--amber)"/>
+          <text class="nl" x="384" y="178">T3</text>
+        </g>
+        <g id="n4" style="opacity:0;transition:opacity .4s">
+          <circle class="nc" cx="632" cy="180" r="38"/>
+          <text class="nl" x="632" y="180">T4</text>
+        </g>
+        <g id="n5" style="opacity:0;transition:opacity .4s">
+          <circle class="nc" cx="790" cy="180" r="38" style="stroke:var(--purple)"/>
+          <text class="nl" x="790" y="180">T5</text>
+        </g>
+
+        <!-- LEGEND -->
+        <circle cx="30"  cy="265" r="7" fill="none" stroke="#00d4aa" stroke-width="2"/>
+        <text x="43" y="269" font-size="10" fill="#7a8faa" font-family="IBM Plex Sans,sans-serif">Fuente (sin predecesores)</text>
+        <circle cx="240" cy="265" r="7" fill="none" stroke="#f5a623" stroke-width="2"/>
+        <text x="253" y="269" font-size="10" fill="#7a8faa" font-family="IBM Plex Sans,sans-serif">Convergencia</text>
+        <circle cx="400" cy="265" r="7" fill="none" stroke="#9d7eff" stroke-width="2"/>
+        <text x="413" y="269" font-size="10" fill="#7a8faa" font-family="IBM Plex Sans,sans-serif">Sumidero (sin sucesores)</text>
+        <!-- Path legend -->
+        <line x1="570" y1="265" x2="600" y2="265" stroke="#00d4aa" stroke-width="3"/>
+        <text x="606" y="269" font-size="10" fill="#7a8faa" font-family="IBM Plex Sans,sans-serif">Ruta desde T1</text>
+        <line x1="700" y1="265" x2="730" y2="265" stroke="#9d7eff" stroke-width="3"/>
+        <text x="736" y="269" font-size="10" fill="#7a8faa" font-family="IBM Plex Sans,sans-serif">Ruta desde T2</text>
+      </svg>
+    </div>
+
+    <!-- CONTROLES -->
+    <div class="fi d3">
+      <!-- Paso a paso -->
+      <div id="step-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="sbtn" id="b0" onclick="step(0)">⬤ Vértices</button>
+        <button class="sbtn" id="b1" onclick="step(1)">→ T1→T3</button>
+        <button class="sbtn" id="b2" onclick="step(2)">→ T2→T3</button>
+        <button class="sbtn" id="b3" onclick="step(3)">→ T3→T4</button>
+        <button class="sbtn" id="b4" onclick="step(4)">→ T4→T5</button>
+        <button class="sbtn" id="b5" onclick="step(5)" style="border-color:rgba(245,166,35,.3);color:var(--amber)">✓ Todo</button>
+      </div>
+      <!-- Rutas paralelas -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em">RECORRIDOS COMPLETOS:</span>
+        <button class="rbtn teal" id="bpath1" onclick="showPath(1)">⚡ T1 → T3 → T4 → T5</button>
+        <button class="rbtn pur"  id="bpath2" onclick="showPath(2)">⚡ T2 → T3 → T4 → T5</button>
+        <button class="sbtn" id="bpathr" onclick="clearPaths()" style="font-size:11px;padding:5px 10px">✕ Limpiar</button>
+      </div>
+    </div>
+
+    <!-- INFO CARDS -->
+    <div class="three-col fi d4" style="margin-top:14px">
+      <div class="callout">
+        <h3 style="margin-bottom:6px">Vértices fuente</h3>
+        <p style="font-size:.85rem; margin:0">
+          <span class="hl">T1</span> y <span class="hl">T2</span> no tienen aristas entrantes.
+          Son tareas <strong>independientes que corren en paralelo</strong>.
+        </p>
+      </div>
+      <div class="callout amber">
+        <h3 style="margin-bottom:6px">Punto de convergencia</h3>
+        <p style="font-size:.85rem; margin:0">
+          <span class="hl-amb">T3</span> espera a que <strong>ambas rutas</strong> (T1 y T2) terminen.
+          Es el punto de sincronización del dígrafo.
+        </p>
+      </div>
+      <div class="callout purple">
+        <h3 style="margin-bottom:6px">Vértice sumidero</h3>
+        <p style="font-size:.85rem; margin:0">
+          <span class="hl-pur">T5</span> es el destino final de <strong>ambas rutas</strong>.
+          Sin aristas salientes: indica el fin del proceso.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ╔══════════════════════════════════════════════════════╗
+     ║  DIAPOSITIVA 5 — CICLOS + GARANTÍAS + CONCLUSIÓN    ║
+     ╚══════════════════════════════════════════════════════╝ -->
+<section class="slide s-ciclos" id="s5">
+  <div class="slide-inner">
+
+    <div class="eyebrow fi">Estructura DAG — Propiedades y garantías</div>
+    <h2 class="fi d1">Importancia de la <em>ausencia de ciclos</em><br>y qué <em>garantiza</em> esta estructura</h2>
+
+    <div class="two-col fi d2">
+
+      <!-- CICLOS -->
+      <div>
+        <div class="card red" style="margin-bottom:14px">
+          <h4 style="color:var(--red)">⚠️ &nbsp;¿Qué es un ciclo y por qué es un problema?</h4>
+          <p>
+            Un <span class="hl-red">ciclo</span> ocurre cuando existe una secuencia de aristas
+            que parte de un vértice y regresa a él mismo.
+            En el contexto de tareas, esto crea una
+            <strong>dependencia circular imposible de resolver</strong>.
+          </p>
+          <div class="divider"></div>
+          <p style="font-size:.88rem">
+            <strong>Ejemplo hipotético (INVÁLIDO):</strong><br>
+            Si existiera <code>T3 → T4 → T3</code>,
+            entonces T3 necesitaría que T4 termine, pero T4 necesitaría que T3 termine.
+            <span class="hl-red">Ninguna podría comenzar jamás.</span>
+          </p>
+        </div>
+
+        <!-- MINI SVG ciclo inválido -->
+        <div class="cycle-svg-wrap fi d3">
+          <div style="text-align:center; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--red); letter-spacing:.12em; margin-bottom:8px">EJEMPLO INVÁLIDO — CICLO</div>
+          <svg viewBox="0 0 320 160" width="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arr-r" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+                <polygon points="0 0,9 3.5,0 7" fill="#e85d5d"/>
+              </marker>
+            </defs>
+            <!-- ciclo T3→T4→T3 -->
+            <path d="M 100,80 Q 160,25 220,80" fill="none" stroke="#e85d5d" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arr-r)" opacity=".9"/>
+            <path d="M 220,90 Q 160,145 100,90" fill="none" stroke="#e85d5d" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arr-r)" opacity=".9"/>
+            <circle cx="85"  cy="85" r="32" fill="#1a0d0d" stroke="#e85d5d" stroke-width="2"/>
+            <circle cx="235" cy="85" r="32" fill="#1a0d0d" stroke="#e85d5d" stroke-width="2"/>
+            <text x="85"  y="89" text-anchor="middle" dominant-baseline="central" fill="white" font-family="IBM Plex Mono,monospace" font-size="13">T3</text>
+            <text x="235" y="89" text-anchor="middle" dominant-baseline="central" fill="white" font-family="IBM Plex Mono,monospace" font-size="13">T4</text>
+            <text x="160" y="20" text-anchor="middle" fill="#e85d5d" font-size="10" font-family="IBM Plex Sans,sans-serif">T3 necesita que T4 termine</text>
+            <text x="160" y="150" text-anchor="middle" fill="#e85d5d" font-size="10" font-family="IBM Plex Sans,sans-serif">T4 necesita que T3 termine</text>
+          </svg>
+          <div style="text-align:center; font-size:.8rem; color:var(--red); margin-top:6px">
+            → Ninguna tarea puede comenzar nunca. Sistema bloqueado.
+          </div>
+        </div>
+
+        <div class="callout red fi d4" style="margin-top:12px">
+          <p style="margin:0; font-size:.88rem">
+            Por eso el modelo <strong>debe ser acíclico</strong>: la ausencia de ciclos
+            es condición necesaria para que el sistema de tareas sea
+            <span class="hl-red">ejecutable en la práctica</span>.
+          </p>
+        </div>
+      </div>
+
+      <!-- GARANTÍAS -->
+      <div>
+        <div class="card accent" style="margin-bottom:14px">
+          <h4>✅ &nbsp;Qué garantiza la estructura G = (V, E)</h4>
+          <p>El hecho de que el modelo sea un <span class="hl">DAG</span> (Directed Acyclic Graph)
+          proporciona las siguientes garantías formales:</p>
+        </div>
+
+        <div class="gitem fi d2">
+          <div class="g-icon teal">🔢</div>
+          <div>
+            <h3>Existencia de orden topológico</h3>
+            <p class="muted" style="margin:0">
+              Todo DAG admite al menos un <strong>orden topológico</strong>:
+              una secuencia lineal de vértices que respeta todas las aristas.
+              En este caso: <code>T1, T2, T3, T4, T5</code>.
+            </p>
+          </div>
+        </div>
+
+        <div class="gitem fi d3">
+          <div class="g-icon teal">✅</div>
+          <div>
+            <h3>Ejecutabilidad del sistema</h3>
+            <p class="muted" style="margin:0">
+              Garantiza que <strong>siempre existe una manera de completar todas las tareas</strong>
+              sin quedar bloqueado por dependencias imposibles.
+            </p>
+          </div>
+        </div>
+
+        <div class="gitem fi d4">
+          <div class="g-icon amber">🔁</div>
+          <div>
+            <h3>Identificación de paralelismo</h3>
+            <p class="muted" style="margin:0">
+              La estructura permite identificar qué tareas no tienen dependencias entre sí
+              y pueden <strong>ejecutarse simultáneamente</strong> (T1 y T2 en este caso).
+            </p>
+          </div>
+        </div>
+
+        <div class="gitem fi d5">
+          <div class="g-icon purple">📐</div>
+          <div>
+            <h3>Modelo formal y verificable</h3>
+            <p class="muted" style="margin:0">
+              La definición <code>G = (V, E)</code> permite aplicar
+              <strong>algoritmos formales</strong> (BFS, DFS, Kahn) para
+              detectar ciclos, calcular caminos críticos y planificar la ejecución.
+            </p>
+          </div>
+        </div>
+
+        <!-- RESUMEN FINAL -->
+        <div class="callout fi d6" style="margin-top:14px; border-color:rgba(0,212,170,.4); padding:20px 22px">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px">
+            <span class="tag">Conclusión</span>
+          </div>
+          <p style="margin:0; font-size:.92rem; line-height:1.8">
+            El dígrafo <span class="hl">G = (V, E)</span> con
+            <strong>V = {T1, T2, T3, T4, T5}</strong> y
+            <strong>E = {(T1,T3), (T2,T3), (T3,T4), (T4,T5)}</strong>
+            modela el sistema de tareas de manera <strong>precisa, ejecutable y sin ambigüedad</strong>.
+            Su naturaleza acíclica garantiza que el sistema puede resolverse.
+            Su naturaleza dirigida garantiza que el orden de ejecución queda completamente definido.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ─── Fixed navigation ──────────────────────────────── -->
+<div id="nav">
+  <button class="nbtn" id="prevBtn" disabled>← Anterior</button>
+  <div id="nav-counter"><em id="cur">1</em> / <span id="tot">5</span></div>
+  <button class="nbtn pri" id="nextBtn">Siguiente →</button>
+</div>
+
+
+<script>
+/* ── Slides & nav ─────────────────────────────────────── */
+const slides  = [...document.querySelectorAll('.slide')];
+const prev    = document.getElementById('prevBtn');
+const next    = document.getElementById('nextBtn');
+const bar     = document.getElementById('pbar');
+const curEl   = document.getElementById('cur');
+const spEl    = document.getElementById('sp-num');
+const speakers = ['1','2','3','4','5'];
+let cur = 0;
+
+function goTo(i){
+  cur = Math.max(0, Math.min(i, slides.length-1));
+  slides[cur].scrollIntoView({ behavior:'smooth', block:'start' });
+  update();
+}
+
+function update(){
+  prev.disabled = cur===0;
+  next.disabled = cur===slides.length-1;
+  curEl.textContent = cur+1;
+  bar.style.width = `${((cur+1)/slides.length)*100}%`;
+  spEl.textContent = speakers[cur] || cur+1;
+}
+
+prev.addEventListener('click', ()=>goTo(cur-1));
+next.addEventListener('click', ()=>goTo(cur+1));
+
+document.addEventListener('keydown', e=>{
+  if(['ArrowDown','PageDown','ArrowRight'].includes(e.key)) goTo(cur+1);
+  if(['ArrowUp','PageUp','ArrowLeft'].includes(e.key))      goTo(cur-1);
+});
+
+window.addEventListener('scroll', ()=>{
+  const mid = window.scrollY + window.innerHeight/2;
+  slides.forEach((s,i)=>{
+    if(mid >= s.offsetTop && mid < s.offsetTop+s.offsetHeight) cur=i;
+  });
+  update();
+},{passive:true});
+
+/* ── Intersection Observer → fade-in ──────────────────── */
+const io = new IntersectionObserver(entries=>{
+  entries.forEach(en=>{
+    if(en.isIntersecting)
+      en.target.querySelectorAll('.fi').forEach(el=>el.classList.add('vis'));
+  });
+},{threshold:0.12});
+slides.forEach(s=>io.observe(s));
+
+/* ── Graph build ──────────────────────────────────────── */
+let gStep = -1;
+
+const nodes = ['n1','n2','n3','n4','n5'];
+const edges = [
+  {line:'e13',lbl:'lbl13',btn:'b1'},
+  {line:'e23',lbl:'lbl23',btn:'b2'},
+  {line:'e34',lbl:'lbl34',btn:'b3'},
+  {line:'e45',lbl:'lbl45',btn:'b4'},
+];
+
+function drawEdge(d, delay=0){
+  const line = document.getElementById(d.line);
+  const lbl  = document.getElementById(d.lbl);
+  if(!line) return;
+  const len = line.getTotalLength ? line.getTotalLength() : 220;
+  line.style.strokeDasharray  = len;
+  line.style.strokeDashoffset = len;
+  line.classList.add('show');
+  void line.getBoundingClientRect();
+  line.style.transition = `stroke-dashoffset .65s ease ${delay}s, opacity .3s ease ${delay}s`;
+  line.style.strokeDashoffset = '0';
+  if(lbl){ lbl.style.transition=`opacity .4s ease ${delay+.5}s`; lbl.style.opacity='1'; }
+  if(d.btn) setBtn(d.btn,'done');
+}
+
+function step(s){
+  if(gStep < 0 && s >= 0){
+    nodes.forEach(id => { document.getElementById(id).style.opacity='1'; });
+    setBtn('b0','done'); gStep=0;
+  }
+  for(let i=gStep; i<s; i++){
+    if(i<0) continue;
+    const d = edges[i]; if(!d) continue;
+    drawEdge(d);
+  }
+  if(s===5){
+    for(let i=Math.max(gStep,0); i<4; i++) drawEdge(edges[i]);
+    setBtn('b5','done');
+  }
+  gStep = Math.max(gStep, s===5 ? 4 : s);
+  if(s>0 && s<5) setBtn('b'+s,'active');
+}
+
+/* ── Path highlighting (rutas paralelas) ──────────────── */
+let activePath = 0;
+
+const pathDefs = {
+  1: {
+    overlays: ['ov1-13','ov1-34','ov1-45'],
+    btnId:    'bpath1', cls: 'teal'
+  },
+  2: {
+    overlays: ['ov2-23','ov2-34','ov2-45'],
+    btnId:    'bpath2', cls: 'pur'
+  }
+};
+
+function clearPaths(){
+  [1,2].forEach(p=>{
+    const def = pathDefs[p];
+    def.overlays.forEach(id=>{
+      const el = document.getElementById(id);
+      if(el){ el.style.transition='opacity .3s'; el.style.opacity='0'; }
+    });
+    document.getElementById(def.btnId)?.classList.remove('on');
+  });
+  activePath = 0;
+}
+
+function showPath(p){
+  // Ensure full graph is drawn first
+  if(gStep < 4) step(5);
+
+  // If same path clicked again, toggle off
+  if(activePath === p){ clearPaths(); return; }
+
+  clearPaths();
+
+  const def = pathDefs[p];
+  activePath = p;
+
+  def.overlays.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const len = el.getTotalLength ? el.getTotalLength() : 200;
+    el.style.strokeDasharray  = len;
+    el.style.strokeDashoffset = len;
+    el.style.opacity = '0';
+    void el.getBoundingClientRect();
+    el.style.transition = `stroke-dashoffset .55s ease ${i*.22}s, opacity .2s ease ${i*.22}s`;
+    el.style.strokeDashoffset = '0';
+    el.style.opacity = '1';
+  });
+
+  document.getElementById(def.btnId)?.classList.add('on');
+}
+
+function setBtn(id,state){
+  const b = document.getElementById(id);
+  if(!b) return;
+  b.classList.remove('active','done');
+  if(state) b.classList.add(state);
+}
+
+/* ── Node hover ───────────────────────────────────────── */
+const nodeDescs = {
+  n1:'T1 — Tarea fuente, sin prerequisitos',
+  n2:'T2 — Tarea fuente, sin prerequisitos',
+  n3:'T3 — Requiere T1 y T2 (convergencia)',
+  n4:'T4 — Requiere T3',
+  n5:'T5 — Tarea terminal, requiere T4',
+};
+Object.keys(nodeDescs).forEach(id=>{
+  const g = document.getElementById(id);
+  if(!g) return;
+  const c = g.querySelector('.nc');
+  g.addEventListener('mouseenter',()=>c&&c.classList.add('lit'));
+  g.addEventListener('mouseleave',()=>c&&c.classList.remove('lit'));
+  g.setAttribute('title', nodeDescs[id]);
+});
+
+update();
+
+/* ── QR Code para el desafío ──────────────────────────── */
+(function generateQR(){
+  const CHALLENGE_URL = 'challenge.html'; // ← reemplazar con URL Vercel real
+  const canvas = document.getElementById('qr-canvas');
+  const urlEl  = document.getElementById('qr-url');
+  if(!canvas) return;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(CHALLENGE_URL)}&size=120x120&margin=4`;
+  img.onload = ()=>{
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,120,120);
+    ctx.drawImage(img,0,0,120,120);
+  };
+  img.onerror = ()=>{
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle='#111a2b'; ctx.fillRect(0,0,120,120);
+    ctx.fillStyle='#00d4aa'; ctx.font='bold 10px monospace';
+    ctx.textAlign='center';
+    ctx.fillText('QR listo al subir',60,52);
+    ctx.fillText('la URL a Vercel',60,68);
+  };
+  if(urlEl) urlEl.textContent = CHALLENGE_URL;
+})();
+</script>
+</body>
+</html>

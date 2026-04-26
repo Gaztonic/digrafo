@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ranking en vivo · Dígrafo · Fundamentos de Computación</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════
+   RESET & VARIABLES
+═══════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07101a; --surf:#0d1825; --surf2:#111f30; --surf3:#162438;
+  --teal:#00d4aa; --teal2:#009e80; --teal-dim:rgba(0,212,170,.12);
+  --amber:#f5a623; --amber-dim:rgba(245,166,35,.12);
+  --red:#e85d5d; --green:#4ade80;
+  --purple:#9d7eff; --silver:#a8a8b3; --bronze:#cd7f32;
+  --text:#dce6f5; --muted:#7a8faa; --white:#fff;
+  --border:rgba(0,212,170,.15);
+}
+
+html,body{
+  height:100%;overflow:hidden;
+  background:var(--bg);color:var(--text);
+  font-family:'IBM Plex Sans',sans-serif;
+}
+
+/* dot grid background */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:radial-gradient(rgba(0,212,170,.07) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:0;
+}
+
+/* ═══════════════════════════════════════════════════
+   LAYOUT — 3-row grid: header / main / footer
+═══════════════════════════════════════════════════ */
+body{
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  position:relative;z-index:1;
+}
+
+/* ═══════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════ */
+header{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;gap:20px;
+  padding:14px 32px;
+  background:var(--surf);
+  border-bottom:1px solid var(--border);
+  z-index:2;
+}
+
+.h-brand{display:flex;flex-direction:column;gap:2px;}
+.h-brand .title{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:1rem;font-weight:700;color:var(--white);
+  display:flex;align-items:center;gap:8px;
+}
+.h-brand .title span{color:var(--teal);}
+.h-brand .sub{font-size:.72rem;color:var(--muted);}
+
+.h-chips{display:flex;align-items:center;gap:10px;justify-content:center;}
+.chip{
+  background:var(--surf2);border:1px solid var(--border);
+  border-radius:8px;padding:7px 16px;text-align:center;
+}
+.chip .cv{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:1.1rem;font-weight:700;color:var(--white);
+}
+.chip .cl{font-size:.64rem;color:var(--muted);margin-top:1px;}
+.chip.amber{border-color:rgba(245,166,35,.3);}
+.chip.amber .cv{color:var(--amber);}
+
+.h-right{display:flex;align-items:center;gap:12px;}
+
+/* Live badge */
+.live{
+  display:flex;align-items:center;gap:7px;
+  border:1px solid rgba(0,212,170,.35);border-radius:20px;
+  padding:5px 13px;font-family:'IBM Plex Mono',monospace;
+  font-size:.72rem;color:var(--teal);
+}
+.live-dot{
+  width:7px;height:7px;border-radius:50%;background:var(--teal);
+  animation:blink 1.6s ease infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.18}}
+
+/* Countdown ring */
+.ring-wrap{position:relative;width:38px;height:38px;cursor:default;}
+.ring-wrap title{display:none;}
+.ring-svg{position:absolute;inset:0;width:100%;height:100%;}
+.ring-bg  {fill:none;stroke:var(--surf2);stroke-width:3.5;}
+.ring-fill{
+  fill:none;stroke:var(--teal);stroke-width:3.5;stroke-linecap:round;
+  stroke-dasharray:94;stroke-dashoffset:0;
+  transform:rotate(-90deg);transform-origin:19px 19px;
+  transition:stroke-dashoffset .9s linear;
+}
+.ring-num{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--muted);
+}
+
+/* ═══════════════════════════════════════════════════
+   MAIN — 2 columns: leaderboard | sidebar
+═══════════════════════════════════════════════════ */
+main{
+  display:grid;
+  grid-template-columns:1fr 320px;
+  overflow:hidden;
+  position:relative;z-index:1;
+}
+
+/* ═══════════════════════════════════════════════════
+   LEADERBOARD PANEL
+═══════════════════════════════════════════════════ */
+#lb{padding:22px 28px;overflow-y:auto;display:flex;flex-direction:column;gap:0;}
+
+.section-title{
+  font-family:'IBM Plex Mono',monospace;font-size:.72rem;
+  color:var(--muted);letter-spacing:.2em;text-transform:uppercase;
+  margin-bottom:14px;display:flex;align-items:center;gap:12px;
+}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* Entry */
+.entry{
+  display:grid;
+  grid-template-columns:52px 1fr auto;
+  align-items:center;gap:14px;
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:13px;padding:14px 18px;
+  margin-bottom:9px;
+  transition:border-color .3s,box-shadow .3s,transform .25s,opacity .25s;
+  animation:entry-in .4s ease both;
+}
+@keyframes entry-in{
+  from{opacity:0;transform:translateX(-12px);}
+  to{opacity:1;transform:none;}
+}
+.entry.new{
+  border-color:var(--teal);
+  box-shadow:0 0 0 1px rgba(0,212,170,.25),0 4px 24px rgba(0,212,170,.1);
+}
+.entry.rank-1{border-color:var(--amber); box-shadow:0 4px 24px rgba(245,166,35,.12);}
+.entry.rank-2{border-color:var(--silver);}
+.entry.rank-3{border-color:var(--bronze);}
+
+.e-rank{
+  width:42px;height:42px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:.95rem;
+  background:var(--surf2);color:var(--muted);flex-shrink:0;
+}
+.e-rank.r1{background:var(--amber);color:#000;}
+.e-rank.r2{background:var(--silver);color:#000;}
+.e-rank.r3{background:var(--bronze);color:#fff;}
+
+.e-info{min-width:0;}
+.e-name{
+  font-size:.97rem;font-weight:600;color:var(--white);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.e-badges{display:flex;gap:6px;align-items:center;margin-top:4px;}
+.badge{
+  font-family:'IBM Plex Mono',monospace;font-size:.67rem;font-weight:600;
+  padding:2px 8px;border-radius:4px;
+}
+.badge.perfect{background:rgba(74,222,128,.14);color:var(--green);border:1px solid rgba(74,222,128,.28);}
+.badge.errors {background:rgba(245,166,35,.12);color:var(--amber);border:1px solid rgba(245,166,35,.25);}
+.badge.time   {background:rgba(0,212,170,.1); color:var(--teal); border:1px solid var(--border);}
+
+.e-score{text-align:right;flex-shrink:0;}
+.e-score-val{
+  font-family:'IBM Plex Mono',monospace;font-size:1.55rem;
+  font-weight:700;color:var(--amber);
+  font-variant-numeric:tabular-nums;
+}
+.entry.rank-1 .e-score-val{color:var(--amber);}
+.entry.rank-2 .e-score-val{color:var(--silver);}
+.e-score-sub{font-size:.68rem;color:var(--muted);margin-top:2px;font-family:'IBM Plex Mono',monospace;}
+
+/* Skeleton loader */
+.skel{
+  height:74px;border-radius:13px;margin-bottom:9px;
+  background:linear-gradient(90deg,var(--surf) 25%,var(--surf2) 50%,var(--surf) 75%);
+  background-size:200% 100%;animation:shimmer 1.3s infinite;
+}
+@keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+
+/* Empty state */
+#lb-empty{
+  display:none;flex-direction:column;align-items:center;
+  justify-content:center;flex:1;gap:14px;
+  text-align:center;padding:60px 20px;
+}
+#lb-empty .em-icon{font-size:3.2rem;}
+#lb-empty p{color:var(--muted);font-size:.9rem;line-height:1.7;max-width:320px;}
+
+/* ═══════════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════════ */
+#sidebar{
+  border-left:1px solid var(--border);
+  background:var(--surf);
+  padding:20px 18px;overflow-y:auto;
+  display:flex;flex-direction:column;gap:18px;
+}
+
+.sb-section{display:flex;flex-direction:column;gap:10px;}
+.sb-title{
+  font-family:'IBM Plex Mono',monospace;font-size:.7rem;
+  color:var(--muted);letter-spacing:.2em;text-transform:uppercase;
+}
+.sb-divider{height:1px;background:var(--border);}
+
+/* Donut */
+.donut-wrap{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.donut-svg{width:110px;height:110px;}
+.do-bg  {fill:none;stroke:var(--surf2);stroke-width:11;}
+.do-fill{
+  fill:none;stroke:var(--teal);stroke-width:11;stroke-linecap:round;
+  stroke-dasharray:283;stroke-dashoffset:283;
+  transform:rotate(-90deg);transform-origin:55px 55px;
+  transition:stroke-dashoffset .7s ease;
+}
+.donut-text{
+  font-family:'IBM Plex Mono',monospace;font-size:1.15rem;font-weight:700;
+  fill:var(--white);text-anchor:middle;dominant-baseline:central;
+}
+.donut-sub{font-size:.76rem;color:var(--muted);text-align:center;line-height:1.5;}
+
+/* Stat rows */
+.stat-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--border);
+}
+.stat-row:last-child{border-bottom:none;}
+.stat-key{font-size:.8rem;color:var(--muted);}
+.stat-val{
+  font-family:'IBM Plex Mono',monospace;font-size:.88rem;
+  font-weight:600;color:var(--white);
+}
+
+/* Score distribution mini-bars */
+.dist-wrap{display:flex;flex-direction:column;gap:5px;}
+.dist-row{display:flex;align-items:center;gap:8px;font-size:.74rem;}
+.dist-lbl{color:var(--muted);min-width:30px;font-family:'IBM Plex Mono',monospace;}
+.dist-bar-wrap{flex:1;height:6px;background:var(--surf2);border-radius:3px;overflow:hidden;}
+.dist-bar{height:100%;background:var(--amber);border-radius:3px;transition:width .6s ease;}
+.dist-cnt{color:var(--muted);min-width:20px;text-align:right;font-family:'IBM Plex Mono',monospace;}
+
+/* QR box */
+.qr-box{
+  background:var(--surf2);border:1px solid rgba(245,166,35,.28);
+  border-radius:12px;padding:14px;text-align:center;
+}
+.qr-label{
+  font-family:'IBM Plex Mono',monospace;font-size:.68rem;
+  color:var(--amber);letter-spacing:.15em;margin-bottom:10px;
+}
+#qr-canvas{border-radius:6px;display:block;margin:0 auto;background:#fff;}
+.qr-hint{font-size:.72rem;color:var(--muted);margin-top:7px;line-height:1.55;}
+#qr-url{
+  font-family:'IBM Plex Mono',monospace;font-size:.6rem;
+  color:var(--muted);margin-top:5px;word-break:break-all;
+}
+
+/* ═══════════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════════ */
+footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 32px;
+  background:var(--surf);border-top:1px solid var(--border);
+  font-size:.72rem;color:var(--muted);z-index:2;
+}
+footer b{color:var(--teal);}
+#last-upd{font-family:'IBM Plex Mono',monospace;font-size:.7rem;}
+
+/* ═══════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════ */
+#toast{
+  position:fixed;bottom:56px;left:50%;
+  transform:translateX(-50%) translateY(16px);
+  background:var(--surf2);border:1px solid var(--teal);
+  border-radius:10px;padding:10px 22px;
+  font-size:.85rem;color:var(--white);
+  opacity:0;transition:opacity .3s,transform .3s;
+  z-index:99;white-space:nowrap;pointer-events:none;
+  box-shadow:0 4px 24px rgba(0,212,170,.18);
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ═══════════════════════════════════════════════════
+   RESPONSIVE — large zoom on PC
+═══════════════════════════════════════════════════ */
+@media (max-width:960px){
+  main{grid-template-columns:1fr;}
+  #sidebar{display:none;}
+}
+@media (min-resolution:1.25dppx){
+  .entry{padding:10px 14px;}
+  .e-score-val{font-size:1.3rem;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ══════════════════════════════════════════ -->
+<header>
+  <div class="h-brand">
+    <div class="title">🔗 <span>Dígrafo</span> · Ranking en vivo</div>
+    <div class="sub">Fundamentos de Computación · Dra. Marianela Soledad Reinhardt · 2do Año</div>
+  </div>
+
+  <div class="h-chips">
+    <div class="chip">
+      <div class="cv" id="h-total">0</div>
+      <div class="cl">jugadores</div>
+    </div>
+    <div class="chip amber">
+      <div class="cv" id="h-best">—</div>
+      <div class="cl">mejor puntaje</div>
+    </div>
+    <div class="chip">
+      <div class="cv" id="h-perfect">0</div>
+      <div class="cl">sin errores</div>
+    </div>
+  </div>
+
+  <div class="h-right">
+    <div class="live"><span class="live-dot"></span>EN VIVO</div>
+    <div class="ring-wrap" id="ring-wrap">
+      <svg class="ring-svg" viewBox="0 0 38 38">
+        <circle class="ring-bg"   cx="19" cy="19" r="15"/>
+        <circle class="ring-fill" id="ring-fill" cx="19" cy="19" r="15"/>
+      </svg>
+      <div class="ring-num" id="ring-num">10</div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ MAIN ════════════════════════════════════════════ -->
+<main>
+
+  <!-- LEADERBOARD -->
+  <div id="lb">
+    <div class="section-title">Tabla de posiciones</div>
+    <!-- Skeleton placeholders -->
+    <div class="skel" id="sk1"></div>
+    <div class="skel" id="sk2" style="opacity:.65"></div>
+    <div class="skel" id="sk3" style="opacity:.4"></div>
+    <!-- Empty state -->
+    <div id="lb-empty">
+      <div class="em-icon">⏳</div>
+      <p>Esperando que los compañeros escaneen el QR y completen el desafío…</p>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+
+    <!-- Participation donut -->
+    <div class="sb-section">
+      <div class="sb-title">Participación</div>
+      <div class="donut-wrap">
+        <svg class="donut-svg" viewBox="0 0 110 110">
+          <circle class="do-bg"   cx="55" cy="55" r="45"/>
+          <circle class="do-fill" id="do-fill" cx="55" cy="55" r="45"/>
+          <text class="donut-text" id="do-text" x="55" y="55">0</text>
+        </svg>
+        <div class="donut-sub" id="do-sub">jugadores completaron</div>
+      </div>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <!-- Stats -->
+    <div class="sb-section">
+      <div class="sb-title">Estadísticas</div>
+      <div class="stat-row"><span class="stat-key">Mejor tiempo</span><span class="stat-val" id="s-btime">—</span></div>
+      <div class="stat-row"><span class="stat-key">Tiempo promedio</span><span class="stat-val" id="s-atime">—</span></div>
+      <div class="stat-row"><span class="stat-key">Sin errores</span><span class="stat-val" id="s-perf">—</span></div>
+      <div class="stat-row"><span class="stat-key">Errores promedio</span><span class="stat-val" id="s-aerr">—</span></div>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <!-- Score distribution -->
+    <div class="sb-section">
+      <div class="sb-title">Distribución de puntajes</div>
+      <div class="dist-wrap" id="dist-wrap">
+        <!-- built by JS -->
+      </div>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <!-- QR -->
+    <div class="qr-box">
+      <div class="qr-label">⚡ DESAFÍO — ESCANEÁ</div>
+      <canvas id="qr-canvas" width="150" height="150"></canvas>
+      <div class="qr-hint">Mostrá este QR a tus compañeros<br>para que participen</div>
+      <div id="qr-url"></div>
+    </div>
+
+  </div>
+</main>
+
+<!-- ═══ FOOTER ══════════════════════════════════════════ -->
+<footer>
+  <span>Unidad III · Grafos y Árboles · <b>G = (V, E)</b></span>
+  <span id="last-upd">Esperando primera actualización…</span>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   ⚙️  CONFIGURACIÓN — mismas credenciales que challenge.html
+   ═══════════════════════════════════════════════════════ */
+const SB_URL        = 'https://yfvyphfpmeovkhjhzfcq.supabase.co';
+const SB_KEY        = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmdnlwaGZwbWVvdmtoamh6ZmNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNDkyMjUsImV4cCI6MjA5MjcyNTIyNX0.ItStLl821QSfmo1omgRnDgA48A-N4SDtxlgdTD9bPFs';
+const TABLE         = 'digraph_challenge';
+const CHALLENGE_URL = 'https://TU-PROYECTO.vercel.app/challenge.html'; // ← URL pública del challenge
+const POLL_SECS     = 10;
+/* ═══════════════════════════════════════════════════════ */
+
+const useDB = () => SB_URL !== 'https://TU_PROYECTO.supabase.co';
+
+/* ── Supabase ─── */
+const SBH = () => ({ 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` });
+async function fetchRows() {
+  const r = await fetch(
+    `${SB_URL}/rest/v1/${TABLE}?completado=eq.true&order=puntaje.desc,tiempo_segundos.asc,errores.asc&limit=30`,
+    { headers: SBH() }
+  );
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+/* ── Helpers ─── */
+const fmt    = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+const esc    = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const toast  = msg => {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
+};
+
+/* ── State ─── */
+let prevKeys = new Set();
+
+/* ── Render ─── */
+function render(rows) {
+  // Remove skeletons
+  ['sk1','sk2','sk3'].forEach(id => document.getElementById(id)?.remove());
+
+  const lb    = document.getElementById('lb');
+  const empty = document.getElementById('lb-empty');
+
+  if (!rows.length) {
+    empty.style.display = 'flex';
+    updateStats([]);
+    return;
+  }
+  empty.style.display = 'none';
+
+  // Detect new entries BEFORE updating prevKeys
+  const newKeys    = new Set(rows.map(r => r.nombre + r.puntaje));
+  const isNewEntry = r => !prevKeys.has(r.nombre + r.puntaje);
+  const newNames   = rows.filter(isNewEntry).map(r => r.nombre.split(' ')[0]);
+
+  if (newNames.length && prevKeys.size > 0) {
+    toast(`🎉 ${newNames.join(', ')} completó el desafío`);
+  }
+  prevKeys = newKeys; // update AFTER capturing isNewEntry
+
+  // Build entries
+  const list = document.createElement('div');
+  rows.forEach((r, i) => {
+    const rank   = i + 1;
+    const rankCl = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
+    const sym    = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+
+    const errBadge = r.errores === 0
+      ? `<span class="badge perfect">✓ perfecto</span>`
+      : `<span class="badge errors">${r.errores} error${r.errores > 1 ? 'es' : ''}</span>`;
+
+    const div = document.createElement('div');
+    div.className = `entry rank-${rank}${isNewEntry(r) ? ' new' : ''}`;
+    div.style.animationDelay = (i * 0.04) + 's';
+    div.innerHTML = `
+      <div class="e-rank ${rankCl}">${sym}</div>
+      <div class="e-info">
+        <div class="e-name">${esc(r.nombre)}</div>
+        <div class="e-badges">
+          ${errBadge}
+          <span class="badge time">${fmt(r.tiempo_segundos)}</span>
+        </div>
+      </div>
+      <div class="e-score">
+        <div class="e-score-val">${(r.puntaje ?? 0).toLocaleString('es-AR')}</div>
+        <div class="e-score-sub">puntos</div>
+      </div>`;
+    list.appendChild(div);
+
+    // Remove "new" glow after 4s
+    setTimeout(() => div.classList.remove('new'), 4000);
+  });
+
+  // Replace everything between title and empty
+  const title = lb.querySelector('.section-title');
+  lb.innerHTML = '';
+  lb.appendChild(title);
+  lb.appendChild(list);
+  lb.appendChild(empty);
+
+  updateStats(rows);
+}
+
+/* ── Stats + Donut + Distribution ─── */
+function updateStats(rows) {
+  const total   = rows.length;
+  const perfect = rows.filter(r => r.errores === 0).length;
+  const best    = rows.length ? rows[0].puntaje : null;
+  const btime   = rows.length ? Math.min(...rows.map(r => r.tiempo_segundos)) : null;
+  const atime   = rows.length ? Math.round(rows.reduce((a,r) => a + r.tiempo_segundos, 0) / rows.length) : null;
+  const aerr    = rows.length ? (rows.reduce((a,r) => a + r.errores, 0) / rows.length).toFixed(1) : null;
+
+  // Header chips
+  document.getElementById('h-total').textContent   = total;
+  document.getElementById('h-best').textContent    = best ? best.toLocaleString('es-AR') : '—';
+  document.getElementById('h-perfect').textContent = perfect;
+
+  // Sidebar stats
+  document.getElementById('s-btime').textContent = btime  ? fmt(btime)  : '—';
+  document.getElementById('s-atime').textContent = atime  ? fmt(atime)  : '—';
+  document.getElementById('s-perf').textContent  = `${perfect} / ${total}`;
+  document.getElementById('s-aerr').textContent  = aerr   ? aerr        : '—';
+
+  // Donut (out of 30 expected)
+  const expected = 30;
+  const frac     = total / expected;
+  const circ     = 2 * Math.PI * 45; // r=45 → ~283
+  document.getElementById('do-fill').style.strokeDashoffset = circ * (1 - Math.min(frac, 1));
+  document.getElementById('do-text').textContent = total;
+  document.getElementById('do-sub').textContent  = `de ~${expected} esperados`;
+
+  // Score distribution buckets: 0-200, 201-400, 401-600, 601-800, 801+
+  const buckets = [
+    { lbl: '800+', min: 800, max: Infinity },
+    { lbl: '600', min: 600, max: 799 },
+    { lbl: '400', min: 400, max: 599 },
+    { lbl: '200', min: 200, max: 399 },
+    { lbl: '<200', min: 0,   max: 199 },
+  ];
+  const maxCount = Math.max(1, ...buckets.map(b =>
+    rows.filter(r => (r.puntaje ?? 0) >= b.min && (r.puntaje ?? 0) <= b.max).length
+  ));
+  const dw = document.getElementById('dist-wrap');
+  dw.innerHTML = buckets.map(b => {
+    const cnt  = rows.filter(r => (r.puntaje ?? 0) >= b.min && (r.puntaje ?? 0) <= b.max).length;
+    const pct  = Math.round(cnt / maxCount * 100);
+    return `<div class="dist-row">
+      <div class="dist-lbl">${b.lbl}</div>
+      <div class="dist-bar-wrap"><div class="dist-bar" style="width:${pct}%"></div></div>
+      <div class="dist-cnt">${cnt}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Poll ─── */
+async function poll() {
+  if (!useDB()) {
+    document.getElementById('lb-empty').style.display = 'flex';
+    document.getElementById('lb-empty').querySelector('p').textContent =
+      'Configurá SB_URL y SB_KEY en el archivo para ver datos en vivo.';
+    ['sk1','sk2','sk3'].forEach(id => document.getElementById(id)?.remove());
+    return;
+  }
+  try {
+    const rows = await fetchRows();
+    render(rows);
+    const now = new Date();
+    document.getElementById('last-upd').textContent =
+      `Actualizado: ${now.toLocaleTimeString('es-AR')}`;
+  } catch (e) {
+    console.warn('Poll error:', e);
+  }
+}
+
+/* ── Countdown ring ─── */
+let countdown = POLL_SECS;
+setInterval(() => {
+  countdown--;
+  const frac = countdown / POLL_SECS;
+  const circ = 2 * Math.PI * 15; // r=15 → ~94
+  document.getElementById('ring-fill').style.strokeDashoffset = circ * (1 - frac);
+  document.getElementById('ring-num').textContent = countdown;
+  if (countdown <= 0) {
+    poll();
+    countdown = POLL_SECS;
+  }
+}, 1000);
+
+/* ── QR Code ─── */
+(function buildQR() {
+  const canvas = document.getElementById('qr-canvas');
+  document.getElementById('qr-url').textContent = CHALLENGE_URL;
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(CHALLENGE_URL)}&size=150x150&margin=4`;
+  img.onload = () => {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, 150, 150);
+    ctx.drawImage(img, 0, 0, 150, 150);
+  };
+})();
+
+/* ── Init ─── */
+poll();
+</script>
+</body>
+</html>

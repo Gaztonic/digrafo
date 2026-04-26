@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#07101a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Desafío · Dígrafo · Fundamentos de Computación</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   RESET & VARIABLES
+═══════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070e18;
+  --surf:#0c1828;
+  --surf2:#101e30;
+  --surf3:#152438;
+  --teal:#00d4aa;
+  --teal2:#009e80;
+  --teal-glow:rgba(0,212,170,.25);
+  --amber:#f5a623;
+  --amber-glow:rgba(245,166,35,.25);
+  --red:#e85d5d;
+  --green:#4ade80;
+  --purple:#9d7eff;
+  --text:#d8e4f5;
+  --muted:#6a849e;
+  --white:#ffffff;
+  --border:rgba(0,212,170,.14);
+  --border2:rgba(255,255,255,.07);
+  /* iOS safe areas */
+  --st:env(safe-area-inset-top,0px);
+  --sb:env(safe-area-inset-bottom,0px);
+  --sl:env(safe-area-inset-left,0px);
+  --sr:env(safe-area-inset-right,0px);
+}
+
+html,body{
+  height:100%;overflow:hidden;
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  -webkit-tap-highlight-color:transparent;
+  user-select:none;overscroll-behavior:none;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SCREEN SYSTEM
+═══════════════════════════════════════════════════════ */
+.screen{
+  position:fixed;inset:0;
+  padding-top:var(--st);padding-bottom:var(--sb);
+  padding-left:var(--sl);padding-right:var(--sr);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  background:var(--bg);
+  transition:opacity .3s ease,transform .3s ease;
+  z-index:1;
+}
+.screen.hidden{opacity:0;pointer-events:none;transform:scale(.97);}
+
+/* ═══════════════════════════════════════════════════════
+   SHARED COMPONENTS
+═══════════════════════════════════════════════════════ */
+
+/* Pill badge */
+.pill{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--border);border-radius:20px;
+  padding:5px 14px;font-size:.68rem;color:var(--muted);
+  letter-spacing:.07em;text-transform:uppercase;
+}
+.pill-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--teal);
+  animation:blink 1.8s ease infinite;flex-shrink:0;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* Primary button */
+.btn-p{
+  width:100%;max-width:340px;
+  background:var(--teal);color:var(--bg);border:none;
+  border-radius:14px;padding:16px;font-size:1rem;font-weight:800;
+  cursor:pointer;letter-spacing:.03em;
+  transition:background .15s,transform .1s;
+  -webkit-appearance:none;
+}
+.btn-p:active{transform:scale(.965);background:var(--teal2);}
+.btn-p:disabled{background:var(--surf2);color:var(--muted);cursor:not-allowed;}
+
+/* Ghost button */
+.btn-g{
+  background:transparent;color:var(--muted);
+  border:1px solid var(--border2);border-radius:12px;
+  padding:12px 28px;font-size:.9rem;cursor:pointer;
+  transition:all .2s;-webkit-appearance:none;
+}
+.btn-g:active{border-color:var(--teal);color:var(--teal);}
+
+/* ═══════════════════════════════════════════════════════
+   SCREEN 0 — INTRO
+═══════════════════════════════════════════════════════ */
+#s-intro{
+  gap:13px;text-align:center;
+  padding:calc(var(--st) + 20px) 22px calc(var(--sb) + 20px);
+  overflow-y:auto;
+}
+.intro-icon{font-size:2.8rem;line-height:1;margin-top:4px;}
+.intro-h{font-size:1.55rem;font-weight:800;color:var(--white);line-height:1.2;}
+.intro-h em{color:var(--teal);font-style:normal;}
+.intro-sub{font-size:.86rem;color:var(--muted);max-width:290px;line-height:1.65;}
+
+/* Enunciado card */
+.enun-card{
+  width:100%;max-width:340px;
+  background:var(--surf);
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+}
+.enun-header{
+  padding:10px 16px 0;
+  display:flex;align-items:center;gap:8px;
+  font-size:.66rem;font-weight:700;color:var(--teal);
+  letter-spacing:.14em;text-transform:uppercase;
+}
+.enun-title-icon{font-size:.9rem;}
+.enun-body{padding:10px 16px 14px;display:flex;flex-direction:column;gap:0;}
+.enun-intro{font-size:.8rem;color:var(--muted);margin-bottom:10px;line-height:1.5;}
+.enun-dep{
+  display:flex;align-items:center;gap:10px;
+  padding:7px 0;border-bottom:1px solid var(--border);
+  font-size:.83rem;
+}
+.enun-dep:last-child{border-bottom:none;}
+.enun-arrow{
+  font-family:'SF Mono',Menlo,monospace;font-weight:700;
+  color:var(--teal);font-size:.86rem;min-width:62px;
+}
+.enun-meaning{color:var(--muted);font-size:.78rem;}
+
+/* Score preview grid */
+.score-grid{
+  width:100%;max-width:340px;
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:14px;padding:10px 16px;
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+}
+.sg-item{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;}
+.sg-val{font-size:1rem;font-weight:800;color:var(--amber);font-family:monospace;}
+.sg-val.neg{color:var(--red);}
+.sg-lbl{font-size:.65rem;color:var(--muted);}
+
+/* Input */
+.inp-wrap{width:100%;max-width:340px;}
+.inp-wrap input{
+  width:100%;background:var(--surf);
+  border:1.5px solid var(--border);
+  border-radius:13px;padding:15px 16px;
+  font-size:1rem;color:var(--white);
+  outline:none;-webkit-appearance:none;
+  transition:border-color .2s;
+  caret-color:var(--teal);
+}
+.inp-wrap input:focus{border-color:var(--teal);background:var(--surf2);}
+.inp-wrap input::placeholder{color:var(--muted);}
+
+.tiny{font-size:.68rem;color:var(--muted);text-align:center;line-height:1.55;}
+
+/* ═══════════════════════════════════════════════════════
+   SCREEN 1 — GAME
+═══════════════════════════════════════════════════════ */
+#s-game{
+  padding:0;justify-content:flex-start;align-items:stretch;
+  padding-top:var(--st);
+}
+
+/* Header */
+#ghdr{
+  display:grid;grid-template-columns:1fr auto 1fr;
+  align-items:center;gap:6px;
+  padding:10px 16px;
+  background:var(--surf);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.g-player{
+  font-size:.72rem;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.g-player b{color:var(--teal);}
+#g-timer{
+  font-size:1.5rem;font-weight:800;
+  color:var(--teal);font-variant-numeric:tabular-nums;
+  letter-spacing:.04em;font-family:monospace;text-align:center;
+  transition:color .3s;
+}
+#g-timer.warn  {color:var(--amber);}
+#g-timer.danger{color:var(--red);animation:pt .5s ease infinite alternate;}
+@keyframes pt{from{opacity:1}to{opacity:.4}}
+.g-score-wrap{text-align:right;}
+#g-score{
+  font-size:1.25rem;font-weight:800;color:var(--amber);
+  font-variant-numeric:tabular-nums;font-family:monospace;
+  transition:color .25s;
+}
+.g-score-lbl{font-size:.6rem;color:var(--muted);}
+
+/* Progress bar */
+#gbar{height:3px;background:var(--surf2);flex-shrink:0;}
+#gbar-fill{
+  height:100%;width:0;
+  background:linear-gradient(90deg,var(--teal),var(--amber));
+  transition:width .4s ease;
+}
+
+/* Instruction strip */
+#ginstr{
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 14px;
+  background:var(--surf2);
+  border-bottom:1px solid var(--border);
+  min-height:38px;
+}
+.ginstr-text{
+  font-size:.8rem;color:var(--muted);
+  transition:color .2s;flex:1;text-align:center;
+}
+.ginstr-text b{color:var(--white);}
+.ginstr-text.sel{color:var(--teal);}
+
+/* Help toggle button */
+.help-btn{
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;
+  background:var(--surf3);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:.8rem;color:var(--muted);
+  transition:all .2s;
+}
+.help-btn.active{background:var(--teal);color:var(--bg);border-color:var(--teal);}
+
+/* Enunciado slide-up panel (in-game) */
+#enun-panel{
+  position:absolute;bottom:0;left:0;right:0;z-index:20;
+  background:var(--surf);
+  border-top:1px solid var(--border);
+  border-radius:16px 16px 0 0;
+  padding:14px 18px calc(14px + var(--sb));
+  transform:translateY(100%);
+  transition:transform .35s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 -8px 32px rgba(0,0,0,.4);
+}
+#enun-panel.open{transform:translateY(0);}
+.ep-handle{
+  width:36px;height:4px;border-radius:2px;
+  background:var(--border2);margin:0 auto 12px;
+}
+.ep-title{
+  font-size:.66rem;font-weight:700;color:var(--teal);
+  letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px;
+}
+.ep-dep{
+  display:flex;align-items:center;gap:12px;
+  padding:7px 0;border-bottom:1px solid var(--border);font-size:.82rem;
+}
+.ep-dep:last-child{border-bottom:none;}
+.ep-arr{font-family:monospace;font-weight:700;color:var(--teal);min-width:62px;}
+.ep-txt{color:var(--muted);font-size:.76rem;}
+
+/* SVG area */
+#svg-wrap{
+  flex:1;position:relative;overflow:hidden;background:var(--bg);
+}
+#svg-wrap::before{
+  content:'';position:absolute;inset:0;
+  background-image:radial-gradient(rgba(0,212,170,.055) 1px,transparent 1px);
+  background-size:34px 34px;pointer-events:none;z-index:0;
+}
+#gsvg{
+  width:100%;height:100%;display:block;
+  position:relative;z-index:1;touch-action:none;
+}
+
+/* ── SVG Node styles ─── */
+.gnode{cursor:pointer;}
+.gnode circle{
+  stroke-width:2.8;
+  transition:fill .15s,filter .18s;
+}
+.gnode.sel circle{
+  fill:rgba(0,212,170,.22)!important;
+  filter:drop-shadow(0 0 18px rgba(0,212,170,.8));
+  stroke:var(--teal)!important;
+}
+.gnode text{
+  fill:var(--white);font-weight:700;
+  text-anchor:middle;dominant-baseline:central;
+  pointer-events:none;letter-spacing:.04em;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+
+/* ── SVG Edge styles ─── */
+.gedge{
+  fill:none;stroke:var(--teal);stroke-width:2.8;stroke-linecap:round;
+  /* Start fully invisible — stroke AND opacity — so arrowhead doesn't show */
+  opacity:0;
+  transition:opacity .15s;
+  pointer-events:none;
+  filter:drop-shadow(0 0 5px rgba(0,212,170,.5));
+}
+.gedge.drawn{
+  opacity:1;
+  /* dash animation handled by JS setting dasharray/dashoffset */
+}
+
+/* ── Bonus flash ─── */
+#bflash{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  font-size:1.5rem;font-weight:800;
+  font-family:monospace;
+  pointer-events:none;z-index:30;
+  opacity:0;
+}
+#bflash.pop{animation:bpop .8s ease forwards;}
+@keyframes bpop{
+  0%  {opacity:1;transform:translate(-50%,-50%) scale(1);}
+  50% {opacity:1;transform:translate(-50%,-75%) scale(1.35);}
+  100%{opacity:0;transform:translate(-50%,-110%) scale(1.1);}
+}
+
+/* ── Completion overlay (shown on SVG area) ─── */
+#complete-overlay{
+  position:absolute;inset:0;z-index:25;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;
+  background:rgba(7,14,24,.82);
+  backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;
+  transition:opacity .4s ease;
+}
+#complete-overlay.show{opacity:1;}
+.co-icon{font-size:3rem;line-height:1;}
+.co-title{
+  font-size:1.4rem;font-weight:800;color:var(--white);
+  text-align:center;line-height:1.2;
+}
+.co-title em{color:var(--teal);font-style:normal;}
+.co-sub{font-size:.84rem;color:var(--muted);text-align:center;}
+.co-score{
+  font-size:2.2rem;font-weight:800;color:var(--amber);
+  font-family:monospace;letter-spacing:.06em;
+  text-shadow:0 0 20px rgba(245,166,35,.5);
+}
+.co-anim-hint{
+  font-size:.72rem;color:var(--teal);
+  display:flex;align-items:center;gap:6px;margin-top:4px;
+}
+
+/* ── Checklist bottom ─── */
+#gchecks{
+  width:100%;display:grid;grid-template-columns:1fr 1fr;gap:5px;
+  padding:8px 12px calc(8px + var(--sb));
+  background:var(--surf);border-top:1px solid var(--border);flex-shrink:0;
+}
+.gci{
+  display:flex;align-items:center;gap:7px;
+  background:var(--surf2);border:1px solid var(--border2);
+  border-radius:9px;padding:8px 10px;
+  font-size:.78rem;font-family:monospace;
+  transition:all .3s;
+}
+.gci.ok{
+  background:rgba(0,212,170,.1);
+  border-color:rgba(0,212,170,.4);
+  color:var(--teal);
+}
+.gci .gco{min-width:14px;text-align:center;font-size:.85rem;}
+.gci .pts{
+  margin-left:auto;font-size:.64rem;color:var(--amber);
+  font-weight:700;opacity:.7;
+}
+.gci.ok .pts{opacity:1;}
+
+/* ═══════════════════════════════════════════════════════
+   SCREEN 2 — RESULT
+═══════════════════════════════════════════════════════ */
+#s-result{
+  gap:13px;text-align:center;
+  padding:calc(var(--st)+20px) 22px calc(var(--sb)+20px);
+  overflow-y:auto;
+}
+.result-emoji{font-size:3.5rem;line-height:1;}
+#rh{font-size:1.5rem;font-weight:800;color:var(--white);}
+
+.score-hero{
+  width:100%;max-width:320px;
+  background:var(--surf);
+  border:1px solid rgba(245,166,35,.35);
+  border-radius:16px;padding:18px 24px;
+}
+.sh-label{font-size:.66rem;font-weight:700;color:var(--amber);
+  letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px;}
+.sh-val{
+  font-size:3rem;font-weight:800;color:var(--amber);
+  font-family:monospace;letter-spacing:.06em;line-height:1;
+}
+.sh-detail{font-size:.75rem;color:var(--muted);margin-top:6px;line-height:1.5;}
+
+.result-stats{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:8px;width:100%;max-width:320px;
+}
+.rstat{
+  background:var(--surf);border:1px solid var(--border);
+  border-radius:12px;padding:11px 6px;text-align:center;
+}
+.rstat .rv{font-size:1.1rem;font-weight:700;color:var(--white);font-family:monospace;}
+.rstat .rl{font-size:.62rem;color:var(--muted);margin-top:3px;}
+
+#rsub{font-size:.84rem;color:var(--muted);max-width:280px;line-height:1.6;}
+#savemsg{font-size:.74rem;color:var(--muted);min-height:18px;}
+#savemsg.ok{color:var(--green);}
+#savemsg.bad{color:var(--red);}
+
+/* ═══════════════════════════════════════════════════════
+   SCREEN 3 — LEADERBOARD
+═══════════════════════════════════════════════════════ */
+#s-board{
+  padding:0;justify-content:flex-start;align-items:stretch;
+  padding-top:var(--st);
+}
+#bhdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;background:var(--surf);border-bottom:1px solid var(--border);flex-shrink:0;
+}
+#bhdr h2{font-size:1rem;font-weight:700;color:var(--white);}
+#blist{flex:1;overflow-y:auto;padding:12px;padding-bottom:calc(12px + var(--sb));}
+.bi{
+  display:flex;align-items:center;gap:11px;
+  background:var(--surf);border:1px solid var(--border2);
+  border-radius:12px;padding:12px 14px;margin-bottom:8px;
+}
+.bi.me{border-color:rgba(0,212,170,.45);background:rgba(0,212,170,.05);}
+.brank{
+  min-width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;font-weight:800;background:var(--surf2);color:var(--muted);flex-shrink:0;
+}
+.brank.g1{background:var(--amber);color:#000;}
+.brank.g2{background:#a8a8b3;color:#000;}
+.brank.g3{background:#cd7f32;color:#fff;}
+.bname{flex:1;font-size:.9rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bscore{text-align:right;flex-shrink:0;}
+.bscore .bsv{font-family:monospace;font-size:1rem;font-weight:800;color:var(--amber);}
+.bscore .bst{font-size:.66rem;color:var(--muted);}
+#bempty{text-align:center;color:var(--muted);font-size:.88rem;padding:40px 0;line-height:1.6;}
+
+/* ── Spinner ─── */
+#spin{
+  position:fixed;inset:0;background:rgba(7,14,24,.75);
+  display:flex;align-items:center;justify-content:center;
+  z-index:99;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+#spin.on{opacity:1;pointer-events:all;}
+.sp{
+  width:36px;height:36px;border:3px solid var(--border);
+  border-top-color:var(--teal);border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="spin"><div class="sp"></div></div>
+
+<!-- ══════════════════════════════════════════════════════
+     SCREEN 0 — INTRO
+══════════════════════════════════════════════════════ -->
+<div class="screen" id="s-intro">
+  <div class="pill"><span class="pill-dot"></span>Fundamentos de Computación</div>
+  <div class="intro-icon">🔗</div>
+  <div class="intro-h">Armá el <em>Dígrafo</em></div>
+  <p class="intro-sub">Conectá los vértices según las dependencias del enunciado. Más rápido y sin errores = más puntos.</p>
+
+  <!-- Enunciado -->
+  <div class="enun-card">
+    <div class="enun-header">
+      <span class="enun-title-icon">📋</span>
+      Enunciado — G = (V, E)
+    </div>
+    <div class="enun-body">
+      <div class="enun-intro">Se tienen 5 tareas con las siguientes relaciones de precedencia. Cada arista <b>(Ti, Tj)</b> indica que Ti debe ejecutarse antes que Tj:</div>
+      <div class="enun-dep"><span class="enun-arrow">T1 → T3</span><span class="enun-meaning">T1 precede a T3</span></div>
+      <div class="enun-dep"><span class="enun-arrow">T2 → T3</span><span class="enun-meaning">T2 precede a T3</span></div>
+      <div class="enun-dep"><span class="enun-arrow">T3 → T4</span><span class="enun-meaning">T3 precede a T4</span></div>
+      <div class="enun-dep"><span class="enun-arrow">T4 → T5</span><span class="enun-meaning">T4 precede a T5</span></div>
+    </div>
+  </div>
+
+  <!-- Scoring preview -->
+  <div class="score-grid">
+    <div class="sg-item"><div class="sg-val">×2.0</div><div class="sg-lbl">mult. al inicio</div></div>
+    <div class="sg-item"><div class="sg-val">×1.0</div><div class="sg-lbl">a los 2 minutos</div></div>
+    <div class="sg-item"><div class="sg-val">250 pts</div><div class="sg-lbl">arista T_→T3</div></div>
+    <div class="sg-item"><div class="sg-val neg">−75 pts</div><div class="sg-lbl">por error</div></div>
+  </div>
+
+  <div class="inp-wrap">
+    <input id="inp" type="text" placeholder="Tu nombre y apellido"
+      maxlength="40" autocomplete="off" autocorrect="off" spellcheck="false"
+      inputmode="text" oninput="checkN()" onkeydown="if(event.key==='Enter')goGame()">
+  </div>
+
+  <button class="btn-p" id="btngo" disabled onclick="goGame()">▶ &nbsp;Empezar desafío</button>
+  <button class="btn-g" onclick="show('s-board');loadBoard()">Ver ranking 🏆</button>
+  <div class="tiny">Dra. Marianela Soledad Reinhardt · 2do Año · Ing. en Computación</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     SCREEN 1 — GAME
+══════════════════════════════════════════════════════ -->
+<div class="screen hidden" id="s-game">
+
+  <!-- Header: name / timer / score -->
+  <div id="ghdr">
+    <div class="g-player">👤 <b id="ptag">—</b></div>
+    <div id="g-timer">00:00</div>
+    <div class="g-score-wrap">
+      <div id="g-score">0</div>
+      <div class="g-score-lbl">pts</div>
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div id="gbar"><div id="gbar-fill"></div></div>
+
+  <!-- Instruction + help toggle -->
+  <div id="ginstr">
+    <div style="width:28px;flex-shrink:0;"></div><!-- spacer -->
+    <div class="ginstr-text" id="ginstr-text">Tocá un <b>vértice origen</b></div>
+    <div class="help-btn" id="helpbtn" onclick="toggleEnun()">?</div>
+  </div>
+
+  <!-- SVG graph area -->
+  <div id="svg-wrap">
+    <svg id="gsvg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="marr-ok" markerWidth="9" markerHeight="6.5" refX="8.5" refY="3.25" orient="auto">
+          <polygon points="0 0,9 3.25,0 6.5" fill="#00d4aa"/>
+        </marker>
+      </defs>
+      <!-- populated by buildGraph() -->
+    </svg>
+
+    <!-- Bonus points flash -->
+    <div id="bflash">+500</div>
+
+    <!-- Completion overlay shown before result screen -->
+    <div id="complete-overlay">
+      <div class="co-icon">✅</div>
+      <div class="co-title">¡Dígrafo<br><em>completado!</em></div>
+      <div class="co-score" id="co-score">—</div>
+      <div class="co-sub" id="co-sub">Reordenando al modelo canónico…</div>
+      <div class="co-anim-hint" id="co-hint">
+        <span style="animation:blink 1s ease infinite;display:inline-block">⟳</span>
+        Animando árbol topológico
+      </div>
+    </div>
+
+    <!-- In-game enunciado slide-up panel -->
+    <div id="enun-panel">
+      <div class="ep-handle"></div>
+      <div class="ep-title">📋 Enunciado — dependencias</div>
+      <div class="ep-dep"><span class="ep-arr">T1 → T3</span><span class="ep-txt">T1 precede a T3</span></div>
+      <div class="ep-dep"><span class="ep-arr">T2 → T3</span><span class="ep-txt">T2 precede a T3</span></div>
+      <div class="ep-dep"><span class="ep-arr">T3 → T4</span><span class="ep-txt">T3 precede a T4</span></div>
+      <div class="ep-dep"><span class="ep-arr">T4 → T5</span><span class="ep-txt">T4 precede a T5</span></div>
+    </div>
+  </div>
+
+  <!-- Checklist strip -->
+  <div id="gchecks">
+    <div class="gci" id="gci0"><span class="gco">○</span>T1→T3<span class="pts">250</span></div>
+    <div class="gci" id="gci1"><span class="gco">○</span>T2→T3<span class="pts">250</span></div>
+    <div class="gci" id="gci2"><span class="gco">○</span>T3→T4<span class="pts">200</span></div>
+    <div class="gci" id="gci3"><span class="gco">○</span>T4→T5<span class="pts">150</span></div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     SCREEN 2 — RESULT
+══════════════════════════════════════════════════════ -->
+<div class="screen hidden" id="s-result">
+  <div class="result-emoji" id="ricon">🎉</div>
+  <div id="rh">¡Dígrafo completado!</div>
+
+  <div class="score-hero">
+    <div class="sh-label">Puntaje final</div>
+    <div class="sh-val" id="r-score-big">0</div>
+    <div class="sh-detail" id="r-score-detail">—</div>
+  </div>
+
+  <div class="result-stats">
+    <div class="rstat"><div class="rv" id="r-time">00:00</div><div class="rl">Tiempo</div></div>
+    <div class="rstat"><div class="rv" id="r-errs">0</div><div class="rl">Errores</div></div>
+    <div class="rstat"><div class="rv" id="r-mult">×2.0</div><div class="rl">Mult. tiempo</div></div>
+  </div>
+
+  <div id="rsub">Completaste el modelo G = (V, E) correctamente.</div>
+  <div id="savemsg">Guardando resultado…</div>
+
+  <button class="btn-p" onclick="show('s-board');loadBoard()" style="max-width:290px">Ver ranking 🏆</button>
+  <button class="btn-g" onclick="restart()" style="margin-top:2px">↺ Intentar de nuevo</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     SCREEN 3 — LEADERBOARD
+══════════════════════════════════════════════════════ -->
+<div class="screen hidden" id="s-board">
+  <div id="bhdr">
+    <h2>🏆 Ranking · Dígrafo</h2>
+    <button class="btn-g" style="padding:8px 14px;font-size:.8rem" onclick="show('s-intro')">← Volver</button>
+  </div>
+  <div id="blist">
+    <div id="bempty">Aún no hay resultados.<br>¡Sé el primero!</div>
+  </div>
+</div>
+
+
+<script>  
+/* ═══════════════════════════════════════════════════════
+   ⚙️  CONFIGURACIÓN — editá estas 2 líneas con tus datos
+   ═══════════════════════════════════════════════════════ */
+const SB_URL = 'https://yfvyphfpmeovkhjhzfcq.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmdnlwaGZwbWVvdmtoamh6ZmNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNDkyMjUsImV4cCI6MjA5MjcyNTIyNX0.ItStLl821QSfmo1omgRnDgA48A-N4SDtxlgdTD9bPFs';
+const TABLE  = 'digraph_challenge';
+/* ═══════════════════════════════════════════════════════ */
+
+const useDB = () => SB_URL !== 'https://TU_PROYECTO.supabase.co';
+
+/* ── Supabase ─── */
+const H = () => ({ 'apikey':SB_KEY, 'Authorization':`Bearer ${SB_KEY}`, 'Content-Type':'application/json' });
+async function dbInsert(row){
+  const r = await fetch(`${SB_URL}/rest/v1/${TABLE}`, {
+    method:'POST', headers:{...H(),'Prefer':'return=minimal'}, body:JSON.stringify(row)
+  });
+  if(!r.ok) throw new Error(await r.text());
+}
+async function dbSelect(){
+  const r = await fetch(
+    `${SB_URL}/rest/v1/${TABLE}?completado=eq.true&order=puntaje.desc,tiempo_segundos.asc&limit=25`,
+    { headers:H() }
+  );
+  if(!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+/* ── Screen ─── */
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+const spinOn  = ()=> document.getElementById('spin').classList.add('on');
+const spinOff = ()=> document.getElementById('spin').classList.remove('on');
+
+/* ══════════════════════════════════════════════════════
+   SCORING
+   Base weights per edge (reflect difficulty of identification)
+   Time multiplier: 2.0 → 1.0 over 120 seconds
+   Error penalty: −75 pts each
+══════════════════════════════════════════════════════ */
+const EDGE_WEIGHTS = { 't1-t3':250, 't2-t3':250, 't3-t4':200, 't4-t5':150 };
+const ERROR_PENALTY = 75;
+const timeMult = s => Math.max(1.0, 2.0 - s / 120);
+
+/* ══════════════════════════════════════════════════════
+   GRAPH DEFINITIONS
+══════════════════════════════════════════════════════ */
+
+/* Initial scattered layout — order intentionally obscured.
+   T3 (convergence point) placed centrally but not obviously so.
+   T4 and T5 placed at top to avoid revealing the T→T flow. */
+const NODES = [
+  { id:'t4', label:'T4', px:.20, py:.20, stroke:'#dce6f5' },
+  { id:'t1', label:'T1', px:.80, py:.18, stroke:'#00d4aa' },
+  { id:'t5', label:'T5', px:.82, py:.76, stroke:'#9d7eff' },
+  { id:'t3', label:'T3', px:.50, py:.52, stroke:'#f5a623' },
+  { id:'t2', label:'T2', px:.15, py:.74, stroke:'#00d4aa' },
+];
+const NODE_R = 33;
+
+/* Target DAG layout — canonical top-to-bottom tree.
+   T1, T2 at top (parallel sources)
+   T3 converging below them
+   T4 below T3
+   T5 at bottom (sink) */
+const DAG_LAYOUT = {
+  't1': { px:.28, py:.13 },
+  't2': { px:.72, py:.13 },
+  't3': { px:.50, py:.42 },
+  't4': { px:.50, py:.67 },
+  't5': { px:.50, py:.88 },
+};
+
+const CORRECT = { 't1-t3':0, 't2-t3':1, 't3-t4':2, 't4-t5':3 };
+const EDGE_DEFS = [
+  { id:'ge0', f:'t1', t:'t3' },
+  { id:'ge1', f:'t2', t:'t3' },
+  { id:'ge2', f:'t3', t:'t4' },
+  { id:'ge3', f:'t4', t:'t5' },
+];
+
+/* ── State ─── */
+let playerName='', selNode=null, added=new Set();
+let errors=0, totalScore=0, elapsed=0, tInt=null, alive=false;
+
+/* ── Helpers ─── */
+const fmt = s => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const svgW = ()=> document.getElementById('svg-wrap').clientWidth;
+const svgH = ()=> document.getElementById('svg-wrap').clientHeight;
+
+function nPos(id, layout=null){
+  const n = layout ? { px: layout[id].px, py: layout[id].py } : NODES.find(x=>x.id===id);
+  return { x: Math.round(n.px * svgW()), y: Math.round(n.py * svgH()) };
+}
+
+function mkSVG(tag){ return document.createElementNS('http://www.w3.org/2000/svg', tag); }
+function setA(el, attrs){ Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v)); }
+
+/* ── Build graph ─── */
+function buildGraph(){
+  const svg = document.getElementById('gsvg');
+  const W=svgW(), H=svgH();
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const defs = svg.querySelector('defs');
+  svg.innerHTML='';
+  svg.appendChild(defs);
+
+  /* Draw edges FIRST (under nodes), all invisible initially.
+     KEY FIX: no marker-end attribute — added only when drawn.
+     This prevents SVG arrowheads from rendering on hidden lines. */
+  EDGE_DEFS.forEach(e=>{
+    const p1=nPos(e.f), p2=nPos(e.t);
+    const dx=p2.x-p1.x, dy=p2.y-p1.y, d=Math.hypot(dx,dy);
+    const ux=dx/d, uy=dy/d;
+    const x1=p1.x+ux*(NODE_R+2), y1=p1.y+uy*(NODE_R+2);
+    const x2=p2.x-ux*(NODE_R+11), y2=p2.y-uy*(NODE_R+11);
+
+    const line=mkSVG('line');
+    line.id=e.id; line.classList.add('gedge');
+    setA(line,{x1,y1,x2,y2});
+    // DO NOT set marker-end here — set it only when drawing
+    svg.appendChild(line);
+
+    // Score label (invisible, shown briefly on draw)
+    const lbl=mkSVG('text');
+    lbl.id=e.id+'-lbl';
+    setA(lbl,{
+      x:Math.round((x1+x2)/2), y:Math.round((y1+y2)/2)-13,
+      'text-anchor':'middle','dominant-baseline':'central',
+      fill:'#f5a623','font-size':'13','font-weight':'700',
+      'font-family':'monospace',opacity:'0',
+    });
+    svg.appendChild(lbl);
+  });
+
+  /* Draw nodes on top */
+  NODES.forEach(n=>{
+    const p=nPos(n.id);
+    const g=mkSVG('g');
+    g.id='gn-'+n.id; g.classList.add('gnode'); g.dataset.id=n.id;
+
+    const c=mkSVG('circle');
+    setA(c,{cx:p.x,cy:p.y,r:NODE_R,fill:'#0c1828',stroke:n.stroke});
+
+    const t=mkSVG('text');
+    setA(t,{x:p.x,y:p.y,'font-size':'15'});
+    t.textContent=n.label;
+
+    g.appendChild(c); g.appendChild(t);
+    g.addEventListener('click',()=>tap(n.id));
+    svg.appendChild(g);
+  });
+}
+
+/* ── Edge draw helper ─── */
+function drawEdge(idx){
+  const e=EDGE_DEFS[idx];
+  const line=document.getElementById('ge'+idx);
+  if(!line) return;
+
+  // Get current node positions (may be mid-animation, use attribute values)
+  const circle1 = document.querySelector(`#gn-${e.f} circle`);
+  const circle2 = document.querySelector(`#gn-${e.t} circle`);
+  const x1c=parseFloat(circle1.getAttribute('cx'));
+  const y1c=parseFloat(circle1.getAttribute('cy'));
+  const x2c=parseFloat(circle2.getAttribute('cx'));
+  const y2c=parseFloat(circle2.getAttribute('cy'));
+  const dx=x2c-x1c, dy=y2c-y1c, d=Math.hypot(dx,dy);
+  const ux=dx/d, uy=dy/d;
+
+  const x1=x1c+ux*(NODE_R+2), y1=y1c+uy*(NODE_R+2);
+  const x2=x2c-ux*(NODE_R+11), y2=y2c-uy*(NODE_R+11);
+  const len=Math.hypot(x2-x1,y2-y1);
+
+  setA(line,{x1,y1,x2,y2,'marker-end':'url(#marr-ok)'});
+  line.style.strokeDasharray = len;
+  line.style.strokeDashoffset = len;
+  line.classList.add('drawn'); // opacity:1 via CSS
+
+  // Animate dash
+  requestAnimationFrame(()=>{
+    line.style.transition = 'stroke-dashoffset .55s ease';
+    line.style.strokeDashoffset = '0';
+  });
+}
+
+/* ── Intro check ─── */
+function checkN(){
+  document.getElementById('btngo').disabled=
+    document.getElementById('inp').value.trim().length<2;
+}
+
+/* ── Start game ─── */
+function goGame(){
+  playerName=document.getElementById('inp').value.trim();
+  if(playerName.length<2) return;
+  // Reset state
+  selNode=null; added.clear(); errors=0; totalScore=0; elapsed=0; alive=false;
+  clearInterval(tInt);
+  // Reset UI
+  document.getElementById('ptag').textContent=playerName;
+  document.getElementById('g-timer').textContent='00:00';
+  document.getElementById('g-timer').className='';
+  document.getElementById('g-score').textContent='0';
+  document.getElementById('g-score').style.color='var(--amber)';
+  document.getElementById('gbar-fill').style.width='0';
+  document.getElementById('ginstr-text').innerHTML='Tocá un <b>vértice origen</b>';
+  document.getElementById('ginstr-text').className='ginstr-text';
+  document.getElementById('complete-overlay').classList.remove('show');
+  document.getElementById('helpbtn').classList.remove('active');
+  document.getElementById('enun-panel').classList.remove('open');
+  ['gci0','gci1','gci2','gci3'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.classList.remove('ok');
+    el.querySelector('.gco').textContent='○';
+  });
+  buildGraph();
+  show('s-game');
+  setTimeout(()=>{ alive=true; startTimer(); }, 350);
+}
+
+/* ── Timer ─── */
+function startTimer(){
+  clearInterval(tInt);
+  tInt=setInterval(()=>{
+    elapsed++;
+    const el=document.getElementById('g-timer');
+    el.textContent=fmt(elapsed);
+    el.className=elapsed>=120?'danger':elapsed>=60?'warn':'';
+  },1000);
+}
+
+/* ── Enunciado toggle ─── */
+function toggleEnun(){
+  const panel=document.getElementById('enun-panel');
+  const btn=document.getElementById('helpbtn');
+  const open=panel.classList.toggle('open');
+  btn.classList.toggle('active',open);
+}
+
+/* ── Node tap ─── */
+function tap(nid){
+  if(!alive) return;
+  // Close enunciado on tap
+  document.getElementById('enun-panel').classList.remove('open');
+  document.getElementById('helpbtn').classList.remove('active');
+
+  if(!selNode){
+    selNode=nid;
+    document.getElementById('gn-'+nid).classList.add('sel');
+    const it=document.getElementById('ginstr-text');
+    it.innerHTML=`Origen: <b>${nid.toUpperCase()}</b> → tocá el destino`;
+    it.classList.add('sel');
+  } else {
+    if(selNode===nid){ clearSel(); return; }
+    processEdge(selNode,nid);
+    clearSel();
+  }
+}
+
+function clearSel(){
+  if(selNode) document.getElementById('gn-'+selNode)?.classList.remove('sel');
+  selNode=null;
+  const it=document.getElementById('ginstr-text');
+  it.innerHTML='Tocá un <b>vértice origen</b>';
+  it.classList.remove('sel');
+}
+
+/* ── Process edge ─── */
+function processEdge(from, to){
+  const key=`${from}-${to}`;
+  if(added.has(key)) return;
+
+  if(CORRECT[key]!==undefined){
+    /* ✅ CORRECT */
+    added.add(key);
+    const base=EDGE_WEIGHTS[key];
+    const mult=timeMult(elapsed);
+    const pts=Math.floor(base*mult);
+    totalScore=Math.max(0,totalScore+pts);
+
+    // Draw edge (no pre-rendered arrow before this point)
+    const idx=CORRECT[key];
+    drawEdge(idx);
+
+    // Animate score label
+    const lbl=document.getElementById('ge'+idx+'-lbl');
+    if(lbl){
+      lbl.textContent=`+${pts}`;
+      lbl.style.transition='opacity .2s';
+      lbl.style.opacity='1';
+      setTimeout(()=>{ lbl.style.transition='opacity .6s'; lbl.style.opacity='0'; },1600);
+    }
+
+    // Bonus flash
+    showBonus(`+${pts}`, false);
+
+    // Check item
+    const ci=document.getElementById('gci'+idx);
+    if(ci){ ci.classList.add('ok'); ci.querySelector('.gco').textContent='✓'; }
+
+    // Pulse destination
+    pulseNode(to,true);
+    animScore(totalScore);
+
+    // Progress
+    document.getElementById('gbar-fill').style.width=(added.size/4*100)+'%';
+
+    if(added.size===4) finishGame();
+
+  } else {
+    /* ❌ WRONG */
+    errors++;
+    totalScore=Math.max(0,totalScore-ERROR_PENALTY);
+    pulseNode(from,false); pulseNode(to,false);
+    showBonus(`−${ERROR_PENALTY}`,true);
+    animScore(totalScore);
+    const it=document.getElementById('ginstr-text');
+    it.innerHTML='❌ <b>Esa arista no existe</b> — −75 pts';
+    it.classList.remove('sel');
+    setTimeout(()=>{ it.innerHTML='Tocá un <b>vértice origen</b>'; },1400);
+  }
+}
+
+/* ── Visual helpers ─── */
+function pulseNode(nid, ok){
+  const c=document.querySelector('#gn-'+nid+' circle');
+  if(!c) return;
+  c.style.fill=ok?'rgba(0,212,170,.3)':'rgba(232,93,93,.28)';
+  c.style.filter=ok
+    ?'drop-shadow(0 0 20px rgba(0,212,170,.9))'
+    :'drop-shadow(0 0 18px rgba(232,93,93,.9))';
+  setTimeout(()=>{ c.style.fill=''; c.style.filter=''; },600);
+}
+
+function showBonus(text, isNeg){
+  const el=document.getElementById('bflash');
+  el.textContent=text;
+  el.style.color=isNeg?'var(--red)':'var(--amber)';
+  el.style.textShadow=isNeg
+    ?'0 0 20px rgba(232,93,93,.6)'
+    :'0 0 20px rgba(245,166,35,.6)';
+  el.className='';
+  void el.offsetWidth;
+  el.classList.add('pop');
+}
+
+function animScore(target){
+  const el=document.getElementById('g-score');
+  el.textContent=target;
+  el.style.color=target>0?'var(--amber)':'var(--red)';
+}
+
+/* ══════════════════════════════════════════════════════
+   COMPLETION + TREE ANIMATION
+   Steps:
+   1. Stop timer
+   2. Show completion overlay
+   3. Wait 800ms for dramatic pause
+   4. Animate nodes from scattered → canonical DAG layout (top→bottom)
+      using requestAnimationFrame lerp
+   5. Redraw all edges to follow moving nodes
+   6. After animation: pause 1.2s, then go to result screen
+══════════════════════════════════════════════════════ */
+async function finishGame(){
+  alive=false;
+  clearInterval(tInt);
+  const finalTime=elapsed, finalScore=totalScore;
+
+  // 1. Show completion overlay
+  const overlay=document.getElementById('complete-overlay');
+  document.getElementById('co-score').textContent=finalScore+' pts';
+  document.getElementById('co-sub').textContent=
+    errors===0 ? '¡Modelo perfecto! Reordenando…' : `${errors} error${errors>1?'es':''} · Reordenando…`;
+  overlay.classList.add('show');
+
+  // 2. Short pause
+  await delay(700);
+
+  // 3. Animate to DAG layout
+  await animateToDAG();
+
+  // 4. Pause on final tree view
+  document.getElementById('co-hint').style.display='none';
+  document.getElementById('co-sub').textContent='↑ Grafo canónico: T1,T2 → T3 → T4 → T5';
+  await delay(1800);
+
+  // 5. Go to result screen
+  overlay.classList.remove('show');
+  await delay(350);
+
+  show('s-result');
+  populateResult(finalScore, finalTime);
+
+  // 6. Save to DB
+  if(useDB()){
+    spinOn();
+    try{
+      await dbInsert({ nombre:playerName, tiempo_segundos:finalTime,
+        errores:errors, puntaje:finalScore, completado:true });
+      document.getElementById('savemsg').textContent='✓ Resultado guardado en el ranking.';
+      document.getElementById('savemsg').className='ok';
+    }catch(e){
+      document.getElementById('savemsg').textContent='Sin conexión — no se guardó.';
+      document.getElementById('savemsg').className='bad';
+    }finally{ spinOff(); }
+  } else {
+    document.getElementById('savemsg').textContent='⚙️ Configurá Supabase para guardar resultados.';
+  }
+}
+
+function populateResult(finalScore, finalTime){
+  document.getElementById('r-score-big').textContent=finalScore;
+  document.getElementById('r-time').textContent=fmt(finalTime);
+  document.getElementById('r-errs').textContent=errors;
+  document.getElementById('r-mult').textContent=`×${timeMult(0).toFixed(1)}`;
+  const detail=errors===0
+    ?`Sin errores · mult. ×${timeMult(0).toFixed(1)} al inicio`
+    :`${errors} error${errors>1?'es':''} (−${errors*ERROR_PENALTY} pts)`;
+  document.getElementById('r-score-detail').textContent=detail;
+  document.getElementById('rsub').textContent=errors===0
+    ?'¡Modelo perfecto! Sin ningún error.'
+    :`Completado con ${errors} error${errors>1?'es':''}.`;
+  document.getElementById('savemsg').textContent='Guardando resultado…';
+  document.getElementById('savemsg').className='';
+}
+
+/* ── rAF-based smooth lerp animation ─── */
+function animateToDAG(){
+  return new Promise(resolve=>{
+    const W=svgW(), H=svgH();
+    const DURATION=1100; // ms — smooth but not too slow
+
+    // Snapshot current node positions (from live SVG attributes)
+    const startPos={};
+    NODES.forEach(n=>{
+      const c=document.querySelector(`#gn-${n.id} circle`);
+      startPos[n.id]={
+        x:parseFloat(c.getAttribute('cx')),
+        y:parseFloat(c.getAttribute('cy')),
+      };
+    });
+
+    // Target positions in px
+    const endPos={};
+    Object.entries(DAG_LAYOUT).forEach(([id,t])=>{
+      endPos[id]={ x:Math.round(t.px*W), y:Math.round(t.py*H) };
+    });
+
+    const startTime=performance.now();
+
+    function easeInOut(t){
+      // Cubic ease-in-out for smooth ramp-up and ramp-down
+      return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+    }
+
+    function frame(now){
+      const raw=Math.min((now-startTime)/DURATION,1);
+      const ease=easeInOut(raw);
+
+      /* Move every node */
+      NODES.forEach(n=>{
+        const s=startPos[n.id], e=endPos[n.id];
+        const x=Math.round(s.x+(e.x-s.x)*ease);
+        const y=Math.round(s.y+(e.y-s.y)*ease);
+
+        const circle=document.querySelector(`#gn-${n.id} circle`);
+        const text  =document.querySelector(`#gn-${n.id} text`);
+        if(circle){ circle.setAttribute('cx',x); circle.setAttribute('cy',y); }
+        if(text)  { text.setAttribute('x',x);   text.setAttribute('y',y);   }
+      });
+
+      /* Redraw every drawn edge to follow its nodes */
+      EDGE_DEFS.forEach((e,idx)=>{
+        const line=document.getElementById('ge'+idx);
+        if(!line || !line.classList.contains('drawn')) return;
+
+        const c1=document.querySelector(`#gn-${e.f} circle`);
+        const c2=document.querySelector(`#gn-${e.t} circle`);
+        const x1c=parseFloat(c1.getAttribute('cx'));
+        const y1c=parseFloat(c1.getAttribute('cy'));
+        const x2c=parseFloat(c2.getAttribute('cx'));
+        const y2c=parseFloat(c2.getAttribute('cy'));
+
+        const dx=x2c-x1c, dy=y2c-y1c, d=Math.hypot(dx,dy)||1;
+        const ux=dx/d, uy=dy/d;
+        const nx1=x1c+ux*(NODE_R+2), ny1=y1c+uy*(NODE_R+2);
+        const nx2=x2c-ux*(NODE_R+11),ny2=y2c-uy*(NODE_R+11);
+
+        setA(line,{x1:nx1,y1:ny1,x2:nx2,y2:ny2});
+        // Keep edge fully visible during animation (remove dash constraints)
+        line.style.strokeDasharray='none';
+        line.style.strokeDashoffset='0';
+      });
+
+      if(raw<1){ requestAnimationFrame(frame); }
+      else      { resolve(); }
+    }
+
+    requestAnimationFrame(frame);
+  });
+}
+
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+/* ── Leaderboard ─── */
+async function loadBoard(){
+  const list=document.getElementById('blist');
+  const empty=document.getElementById('bempty');
+  if(!useDB()){
+    empty.textContent='⚙️ Configurá Supabase para ver el ranking.';
+    empty.style.display='block'; return;
+  }
+  spinOn();
+  let rows;
+  try{ rows=await dbSelect(); }catch{ rows=[]; }finally{ spinOff(); }
+  list.innerHTML=''; list.appendChild(empty);
+  if(!rows||rows.length===0){ empty.style.display='block'; return; }
+  empty.style.display='none';
+  rows.forEach((r,i)=>{
+    const me=r.nombre===playerName;
+    const rank=i+1;
+    const gc=rank===1?'g1':rank===2?'g2':rank===3?'g3':'';
+    const sym=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank;
+    const div=document.createElement('div');
+    div.className='bi'+(me?' me':'');
+    div.innerHTML=`
+      <div class="brank ${gc}">${sym}</div>
+      <div class="bname">${esc(r.nombre)}${me?' <span style="color:var(--teal);font-size:.68rem">(vos)</span>':''}</div>
+      <div class="bscore">
+        <div class="bsv">${r.puntaje??'—'}</div>
+        <div class="bst">${fmt(r.tiempo_segundos)} · ${r.errores}err</div>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+/* ── Restart ─── */
+function restart(){ show('s-intro'); }
+
+/* ── Keyboard ─── */
+document.getElementById('inp').addEventListener('keydown',e=>{
+  if(e.key==='Enter') goGame();
+});
+
+/* ── Resize ─── */
+window.addEventListener('resize',()=>{
+  if(!document.getElementById('s-game').classList.contains('hidden')){
+    buildGraph();
+    // Re-draw edges already placed by the player
+    added.forEach(key=>{
+      const idx=CORRECT[key];
+      if(idx!==undefined) drawEdge(idx);
+    });
+  }
+});
+</script>
+</body>
+</html>
