@@ -578,6 +578,19 @@ html,body{
         <span style="animation:blink 1s ease infinite;display:inline-block">⟳</span>
         Animando árbol topológico
       </div>
+      <!-- Buttons shown after animation completes -->
+      <div id="co-btns" style="display:none;flex-direction:column;gap:10px;margin-top:8px;width:100%;max-width:280px;align-items:center">
+        <button onclick="goToResult()"
+          style="width:100%;background:var(--teal);color:var(--bg);border:none;border-radius:12px;
+                 padding:14px;font-size:.95rem;font-weight:800;cursor:pointer;letter-spacing:.02em;">
+          Ver mi resultado →
+        </button>
+        <button onclick="closeOverlay()"
+          style="width:100%;background:transparent;color:var(--teal);border:1px solid rgba(0,212,170,.35);
+                 border-radius:12px;padding:12px;font-size:.88rem;font-weight:600;cursor:pointer;">
+          👀 Ver el dígrafo armado
+        </button>
+      </div>
     </div>
 
     <!-- In-game enunciado slide-up panel -->
@@ -1014,47 +1027,90 @@ async function finishGame(){
   clearInterval(tInt);
   const finalTime=elapsed, finalScore=totalScore;
 
+  // Store for later use by goToResult()
+  window._finalTime  = finalTime;
+  window._finalScore = finalScore;
+
   // 1. Show completion overlay
   const overlay=document.getElementById('complete-overlay');
   document.getElementById('co-score').textContent=finalScore+' pts';
   document.getElementById('co-sub').textContent=
     errors===0 ? '¡Modelo perfecto! Reordenando…' : `${errors} error${errors>1?'es':''} · Reordenando…`;
+  document.getElementById('co-hint').style.display='flex';
+  document.getElementById('co-btns').style.display='none';
   overlay.classList.add('show');
 
-  // 2. Short pause
+  // 2. Short dramatic pause
   await delay(700);
 
   // 3. Animate to DAG layout
   await animateToDAG();
 
-  // 4. Pause on final tree view
+  // 4. Show final state — update text and reveal buttons
   document.getElementById('co-hint').style.display='none';
-  document.getElementById('co-sub').textContent='↑ Grafo canónico: T1,T2 → T3 → T4 → T5';
-  await delay(1800);
+  document.getElementById('co-sub').textContent='G = (V, E) · Orden topológico: T1, T2 → T3 → T4 → T5';
+  document.getElementById('co-btns').style.display='flex';
 
-  // 5. Go to result screen
-  overlay.classList.remove('show');
-  await delay(350);
-
-  show('s-result');
-  populateResult(finalScore, finalTime);
-
-  // 6. Save to DB
+  // 5. Save to DB in background (don't block UI)
   if(useDB()){
-    spinOn();
-    try{
-      await dbInsert({ nombre:playerName, tiempo_segundos:finalTime,
-        errores:errors, puntaje:finalScore, completado:true });
-      document.getElementById('savemsg').textContent='✓ Resultado guardado en el ranking.';
-      document.getElementById('savemsg').className='ok';
-    }catch(e){
-      document.getElementById('savemsg').textContent='Sin conexión — no se guardó.';
-      document.getElementById('savemsg').className='bad';
-    }finally{ spinOff(); }
-  } else {
-    document.getElementById('savemsg').textContent='⚙️ Configurá Supabase para guardar resultados.';
+    dbInsert({ nombre:playerName, tiempo_segundos:finalTime,
+      errores:errors, puntaje:finalScore, completado:true })
+    .then(()=>{
+      // will show on result screen when user navigates there
+      window._saveOk = true;
+    })
+    .catch(()=>{ window._saveOk = false; });
   }
 }
+
+/* Called when user taps "Ver mi resultado" */
+async function goToResult(){
+  const overlay=document.getElementById('complete-overlay');
+  overlay.classList.remove('show');
+  await delay(300);
+  show('s-result');
+  populateResult(window._finalScore, window._finalTime);
+  // Update save message based on background save result
+  setTimeout(()=>{
+    if(!useDB()){
+      document.getElementById('savemsg').textContent='⚙️ Configurá Supabase para guardar resultados.';
+    } else if(window._saveOk === true){
+      document.getElementById('savemsg').textContent='✓ Resultado guardado en el ranking.';
+      document.getElementById('savemsg').className='ok';
+    } else if(window._saveOk === false){
+      document.getElementById('savemsg').textContent='Sin conexión — no se guardó.';
+      document.getElementById('savemsg').className='bad';
+    }
+    // if still undefined, save is in flight — show spinner
+    else {
+      document.getElementById('savemsg').textContent='Guardando…';
+    }
+  }, 200);
+}
+
+/* Called when user taps "Ver el dígrafo armado" — hides overlay, stays on game screen */
+function closeOverlay(){
+  const overlay=document.getElementById('complete-overlay');
+  overlay.classList.remove('show');
+  // Add a floating button so user can still get to result
+  const fab=document.createElement('button');
+  fab.id='fab-result';
+  fab.textContent='Ver resultado →';
+  fab.style.cssText=`
+    position:absolute;bottom:calc(var(--sb,0px) + 80px);left:50%;
+    transform:translateX(-50%);
+    background:var(--teal);color:var(--bg);border:none;
+    border-radius:24px;padding:12px 28px;
+    font-size:.9rem;font-weight:800;cursor:pointer;z-index:20;
+    box-shadow:0 4px 20px rgba(0,212,170,.4);
+    white-space:nowrap;
+  `;
+  fab.onclick=goToResult;
+  // Remove existing FAB if any
+  document.getElementById('fab-result')?.remove();
+  document.getElementById('svg-wrap').appendChild(fab);
+}
+
 
 function populateResult(finalScore, finalTime){
   document.getElementById('r-score-big').textContent=finalScore;
@@ -1183,7 +1239,11 @@ async function loadBoard(){
 }
 
 /* ── Restart ─── */
-function restart(){ show('s-intro'); }
+function restart(){
+  document.getElementById('fab-result')?.remove();
+  window._finalTime = window._finalScore = window._saveOk = undefined;
+  show('s-intro');
+}
 
 /* ── Keyboard ─── */
 document.getElementById('inp').addEventListener('keydown',e=>{
