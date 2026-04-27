@@ -102,18 +102,8 @@ body {
   position:relative; overflow:hidden;
 }
 
-/* subtle static dot grid — no animation, no flicker */
-.slide::before {
-  content:'';
-  position:absolute; inset:0;
-  background-image:
-    radial-gradient(circle, rgba(0,212,170,.045) 1px, transparent 1px);
-  background-size:40px 40px;
-  pointer-events:none;
-  /* force own compositing layer to avoid repaint-flicker on scroll-snap */
-  will-change: auto;
-  transform: translateZ(0);
-}
+/* slide background — clean, no grid */
+.slide::before { display: none; }
 .slide-inner {
   max-width:1000px; width:100%;
   position:relative; z-index:1;
@@ -346,17 +336,6 @@ code {
   background:var(--bg2); border:1px solid var(--border);
   border-radius:14px; padding:12px;
   position:relative; overflow:hidden;
-}
-#graph-wrap::before {
-  content:'';
-  position:absolute; inset:0;
-  background-image:
-    linear-gradient(rgba(0,212,170,.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,170,.04) 1px, transparent 1px);
-  background-size:36px 36px;
-  border-radius:14px;
-  pointer-events:none;
-  transform: translateZ(0);
 }
 #svg-graph { width:100%; height:auto; display:block; position:relative; z-index:1; }
 
@@ -1275,7 +1254,7 @@ update();
 
 /* ── QR Code para el desafío ──────────────────────────── */
 (function generateQR(){
-  const CHALLENGE_URL = 'https://digrafo.vercel.app/challenge.html'; // ← reemplazar con URL Vercel real
+  const CHALLENGE_URL = 'https://digrafo.vercel.app/challenge.html';
   const canvas = document.getElementById('qr-canvas');
   const urlEl  = document.getElementById('qr-url');
   if(!canvas) return;
