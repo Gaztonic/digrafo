@@ -426,6 +426,32 @@ code {
 .fi.d5 { transition-delay:.58s; }
 .fi.d6 { transition-delay:.70s; }
 
+/* ═══ DEGREE TABLE ══════════════════════════════════════ */
+.deg-row{
+  display:grid;grid-template-columns:32px 1fr 1fr;gap:4px;
+  align-items:center;
+  padding:5px 0;border-bottom:1px solid var(--border);
+  transition:background .3s;
+}
+.deg-lbl{
+  font-family:'IBM Plex Mono',monospace;font-size:12px;
+  font-weight:600;color:var(--teal);
+}
+.deg-val{
+  font-family:'IBM Plex Mono',monospace;font-size:13px;
+  font-weight:700;color:var(--white);text-align:center;
+  transition:color .3s, transform .25s;
+}
+.deg-val.updated{
+  color:var(--amber);
+  animation:deg-pop .4s ease;
+}
+@keyframes deg-pop{
+  0%{transform:scale(1)}
+  40%{transform:scale(1.35)}
+  100%{transform:scale(1)}
+}
+
 /* ═══ INTEGRANTES ROWS ══════════════════════════════════ */
 .integrante-row {
   display:flex; align-items:center; gap:10px;
@@ -545,11 +571,11 @@ code {
           <div id="integrantes-list" style="display:flex; flex-direction:column; gap:5px">
             <div class="integrante-row">
               <span class="int-num">01</span>
-              <span class="int-name">Cejas Gastón</span>
+              <span class="int-name">Herlein Andrés</span>
             </div>
             <div class="integrante-row">
               <span class="int-num">02</span>
-              <span class="int-name"> Ponsetto Camila</span>
+              <span class="int-name">Camila Ponsetto</span>
             </div>
             <div class="integrante-row">
               <span class="int-num">03</span>
@@ -557,7 +583,7 @@ code {
             </div>
             <div class="integrante-row">
               <span class="int-num">04</span>
-              <span class="int-name">Herlein Andrés</span>
+              <span class="int-name">Cejas Gastón</span>
             </div>
             <div class="integrante-row">
               <span class="int-num">05</span>
@@ -881,23 +907,77 @@ code {
       </svg>
     </div>
 
-    <!-- CONTROLES -->
-    <div class="fi d3">
-      <!-- Paso a paso -->
-      <div id="step-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <button class="sbtn" id="b0" onclick="step(0)">⬤ Vértices</button>
-        <button class="sbtn" id="b1" onclick="step(1)">→ T1→T3</button>
-        <button class="sbtn" id="b2" onclick="step(2)">→ T2→T3</button>
-        <button class="sbtn" id="b3" onclick="step(3)">→ T3→T4</button>
-        <button class="sbtn" id="b4" onclick="step(4)">→ T4→T5</button>
-        <button class="sbtn" id="b5" onclick="step(5)" style="border-color:rgba(245,166,35,.3);color:var(--amber)">✓ Todo</button>
+    <!-- CONTROLES + GRADOS -->
+    <div class="fi d3" style="display:grid;grid-template-columns:1fr 220px;gap:14px;align-items:start">
+
+      <!-- COLUMNA IZQUIERDA: botones -->
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <!-- Paso a paso -->
+        <div id="step-row" style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="sbtn" id="b0" onclick="step(0)">⬤ Vértices</button>
+          <button class="sbtn" id="b1" onclick="step(1)">→ T1→T3</button>
+          <button class="sbtn" id="b2" onclick="step(2)">→ T2→T3</button>
+          <button class="sbtn" id="b3" onclick="step(3)">→ T3→T4</button>
+          <button class="sbtn" id="b4" onclick="step(4)">→ T4→T5</button>
+          <button class="sbtn" id="b5" onclick="step(5)" style="border-color:rgba(245,166,35,.3);color:var(--amber)">✓ Todo</button>
+        </div>
+        <!-- Recorridos + Limpiar TODO -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.08em;white-space:nowrap">RECORRIDOS:</span>
+          <button class="rbtn teal" id="bpath1" onclick="showPath(1)">⚡ T1 → T5</button>
+          <button class="rbtn pur"  id="bpath2" onclick="showPath(2)">⚡ T2 → T5</button>
+          <button class="sbtn" id="bpathr" onclick="resetGraph()"
+            style="font-size:11px;padding:5px 12px;border-color:rgba(232,93,93,.35);color:var(--red);">
+            ↺ Limpiar
+          </button>
+        </div>
       </div>
-      <!-- Rutas paralelas -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em">RECORRIDOS COMPLETOS:</span>
-        <button class="rbtn teal" id="bpath1" onclick="showPath(1)">⚡ T1 → T3 → T4 → T5</button>
-        <button class="rbtn pur"  id="bpath2" onclick="showPath(2)">⚡ T2 → T3 → T4 → T5</button>
-        <button class="sbtn" id="bpathr" onclick="clearPaths()" style="font-size:11px;padding:5px 10px">✕ Limpiar</button>
+
+      <!-- COLUMNA DERECHA: tabla de grados -->
+      <div id="degree-panel" style="
+        background:var(--surf);border:1px solid var(--border);
+        border-radius:10px;padding:10px 14px;opacity:.4;
+        transition:opacity .4s;
+      ">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--teal);
+          letter-spacing:.16em;text-transform:uppercase;margin-bottom:8px;">
+          GRADOS DE VÉRTICES
+        </div>
+        <!-- Header -->
+        <div style="display:grid;grid-template-columns:32px 1fr 1fr;
+          gap:4px;font-family:'IBM Plex Mono',monospace;font-size:9px;
+          color:var(--muted);margin-bottom:4px;padding-bottom:4px;
+          border-bottom:1px solid var(--border);">
+          <span></span>
+          <span style="text-align:center">g⁻ (ent.)</span>
+          <span style="text-align:center">g⁺ (sal.)</span>
+        </div>
+        <!-- Rows — updated by JS -->
+        <div id="deg-t1" class="deg-row">
+          <span class="deg-lbl">T1</span>
+          <span class="deg-val" id="dg-t1-in">0</span>
+          <span class="deg-val" id="dg-t1-out">0</span>
+        </div>
+        <div id="deg-t2" class="deg-row">
+          <span class="deg-lbl">T2</span>
+          <span class="deg-val" id="dg-t2-in">0</span>
+          <span class="deg-val" id="dg-t2-out">0</span>
+        </div>
+        <div id="deg-t3" class="deg-row" style="border-color:rgba(245,166,35,.2)">
+          <span class="deg-lbl" style="color:var(--amber)">T3</span>
+          <span class="deg-val" id="dg-t3-in">0</span>
+          <span class="deg-val" id="dg-t3-out">0</span>
+        </div>
+        <div id="deg-t4" class="deg-row">
+          <span class="deg-lbl">T4</span>
+          <span class="deg-val" id="dg-t4-in">0</span>
+          <span class="deg-val" id="dg-t4-out">0</span>
+        </div>
+        <div id="deg-t5" class="deg-row" style="border-bottom:none;border-color:rgba(157,126,255,.2)">
+          <span class="deg-lbl" style="color:var(--purple)">T5</span>
+          <span class="deg-val" id="dg-t5-in">0</span>
+          <span class="deg-val" id="dg-t5-out">0</span>
+        </div>
       </div>
     </div>
 
@@ -906,22 +986,22 @@ code {
       <div class="callout">
         <h3 style="margin-bottom:6px">Vértices fuente</h3>
         <p style="font-size:.85rem; margin:0">
-          <span class="hl">T1</span> y <span class="hl">T2</span> no tienen aristas entrantes.
-          Son tareas <strong>independientes que corren en paralelo</strong>.
+          <span class="hl">T1</span> y <span class="hl">T2</span> — g⁻ = 0.
+          Sin aristas entrantes: tareas <strong>independientes que corren en paralelo</strong>.
         </p>
       </div>
       <div class="callout amber">
         <h3 style="margin-bottom:6px">Punto de convergencia</h3>
         <p style="font-size:.85rem; margin:0">
-          <span class="hl-amb">T3</span> espera a que <strong>ambas rutas</strong> (T1 y T2) terminen.
-          Es el punto de sincronización del dígrafo.
+          <span class="hl-amb">T3</span> — g⁻ = 2.
+          Espera a que <strong>T1 y T2</strong> terminen antes de iniciar.
         </p>
       </div>
       <div class="callout purple">
         <h3 style="margin-bottom:6px">Vértice sumidero</h3>
         <p style="font-size:.85rem; margin:0">
-          <span class="hl-pur">T5</span> es el destino final de <strong>ambas rutas</strong>.
-          Sin aristas salientes: indica el fin del proceso.
+          <span class="hl-pur">T5</span> — g⁺ = 0.
+          Sin aristas salientes: es el <strong>fin del proceso</strong>.
         </p>
       </div>
     </div>
@@ -1127,18 +1207,41 @@ const io = new IntersectionObserver(entries=>{
 },{threshold:0.12});
 slides.forEach(s=>io.observe(s));
 
-/* ── Graph build ──────────────────────────────────────── */
+/* ── Graph state ──────────────────────────────────────── */
 let gStep = -1;
 
 const nodes = ['n1','n2','n3','n4','n5'];
 const edges = [
-  {line:'e13',lbl:'lbl13',btn:'b1'},
-  {line:'e23',lbl:'lbl23',btn:'b2'},
-  {line:'e34',lbl:'lbl34',btn:'b3'},
-  {line:'e45',lbl:'lbl45',btn:'b4'},
+  {line:'e13', lbl:'lbl13', btn:'b1', src:'t1', dst:'t3'},
+  {line:'e23', lbl:'lbl23', btn:'b2', src:'t2', dst:'t3'},
+  {line:'e34', lbl:'lbl34', btn:'b3', src:'t3', dst:'t4'},
+  {line:'e45', lbl:'lbl45', btn:'b4', src:'t4', dst:'t5'},
 ];
 
-function drawEdge(d, delay=0){
+/* Degree counters */
+const DEG = {
+  t1:{in:0,out:0}, t2:{in:0,out:0}, t3:{in:0,out:0},
+  t4:{in:0,out:0}, t5:{in:0,out:0}
+};
+
+function updateDegrees(){
+  ['t1','t2','t3','t4','t5'].forEach(v=>{
+    const inEl  = document.getElementById('dg-'+v+'-in');
+    const outEl = document.getElementById('dg-'+v+'-out');
+    if(!inEl||!outEl) return;
+    const ni = DEG[v].in, no = DEG[v].out;
+    const oi = parseInt(inEl.textContent)||0;
+    const oo = parseInt(outEl.textContent)||0;
+    inEl.textContent  = ni;
+    outEl.textContent = no;
+    if(ni !== oi){ inEl.classList.remove('updated');  void inEl.offsetWidth;  inEl.classList.add('updated');  setTimeout(()=>inEl.classList.remove('updated'),500); }
+    if(no !== oo){ outEl.classList.remove('updated'); void outEl.offsetWidth; outEl.classList.add('updated'); setTimeout(()=>outEl.classList.remove('updated'),500); }
+  });
+  const panel = document.getElementById('degree-panel');
+  if(panel) panel.style.opacity = gStep >= 0 ? '1' : '.4';
+}
+
+function drawEdge(d){
   const line = document.getElementById(d.line);
   const lbl  = document.getElementById(d.lbl);
   if(!line) return;
@@ -1147,88 +1250,109 @@ function drawEdge(d, delay=0){
   line.style.strokeDashoffset = len;
   line.classList.add('show');
   void line.getBoundingClientRect();
-  line.style.transition = `stroke-dashoffset .65s ease ${delay}s, opacity .3s ease ${delay}s`;
+  line.style.transition = 'stroke-dashoffset .7s ease, opacity .3s ease';
   line.style.strokeDashoffset = '0';
-  if(lbl){ lbl.style.transition=`opacity .4s ease ${delay+.5}s`; lbl.style.opacity='1'; }
+  line.style.opacity = '1';
+  if(lbl){ lbl.style.transition='opacity .4s ease .5s'; lbl.style.opacity='1'; }
   if(d.btn) setBtn(d.btn,'done');
+  if(d.src && DEG[d.src]) DEG[d.src].out++;
+  if(d.dst && DEG[d.dst]) DEG[d.dst].in++;
+  updateDegrees();
 }
 
 function step(s){
+  // Show vertices first
   if(gStep < 0 && s >= 0){
-    nodes.forEach(id => { document.getElementById(id).style.opacity='1'; });
-    setBtn('b0','done'); gStep=0;
+    nodes.forEach(id=>{ document.getElementById(id).style.opacity='1'; });
+    setBtn('b0','done');
+    gStep = 0;
+    updateDegrees();
+    if(s === 0) return;
   }
-  for(let i=gStep; i<s; i++){
-    if(i<0) continue;
-    const d = edges[i]; if(!d) continue;
-    drawEdge(d);
-  }
-  if(s===5){
-    for(let i=Math.max(gStep,0); i<4; i++) drawEdge(edges[i]);
+  if(s === 5){
+    for(let i = gStep; i < 4; i++) drawEdge(edges[i]);
+    gStep = 4;
     setBtn('b5','done');
+    return;
   }
-  gStep = Math.max(gStep, s===5 ? 4 : s);
-  if(s>0 && s<5) setBtn('b'+s,'active');
+  for(let i = gStep; i < s; i++){
+    if(i < 0) continue;
+    drawEdge(edges[i]);
+  }
+  gStep = Math.max(gStep, s);
+  setBtn('b'+s,'active');
 }
 
-/* ── Path highlighting (rutas paralelas) ──────────────── */
+/* ── Full reset ───────────────────────────────────────── */
+function resetGraph(){
+  gStep = -1; activePath = 0;
+  ['t1','t2','t3','t4','t5'].forEach(v=>{ DEG[v].in=0; DEG[v].out=0; });
+
+  nodes.forEach(id=>{ document.getElementById(id).style.opacity='0'; });
+
+  ['e13','e23','e34','e45'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.style.transition='none'; el.style.opacity='0';
+    el.style.strokeDashoffset = '300'; el.classList.remove('show');
+  });
+  ['ov1-13','ov1-34','ov1-45','ov2-23','ov2-34','ov2-45'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ el.style.transition='none'; el.style.opacity='0'; }
+  });
+  ['lbl13','lbl23','lbl34','lbl45'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ el.style.transition='none'; el.style.opacity='0'; }
+  });
+  ['b0','b1','b2','b3','b4','b5','bpath1','bpath2'].forEach(id=>setBtn(id,null));
+  ['t1','t2','t3','t4','t5'].forEach(v=>{
+    const i=document.getElementById('dg-'+v+'-in');
+    const o=document.getElementById('dg-'+v+'-out');
+    if(i) i.textContent='0'; if(o) o.textContent='0';
+  });
+  const panel = document.getElementById('degree-panel');
+  if(panel) panel.style.opacity='.4';
+}
+
+/* ── Path highlighting ────────────────────────────────── */
 let activePath = 0;
 
 const pathDefs = {
-  1: {
-    overlays: ['ov1-13','ov1-34','ov1-45'],
-    btnId:    'bpath1', cls: 'teal'
-  },
-  2: {
-    overlays: ['ov2-23','ov2-34','ov2-45'],
-    btnId:    'bpath2', cls: 'pur'
-  }
+  1: { overlays:['ov1-13','ov1-34','ov1-45'], btnId:'bpath1' },
+  2: { overlays:['ov2-23','ov2-34','ov2-45'], btnId:'bpath2' },
 };
 
 function clearPaths(){
   [1,2].forEach(p=>{
-    const def = pathDefs[p];
-    def.overlays.forEach(id=>{
-      const el = document.getElementById(id);
+    pathDefs[p].overlays.forEach(id=>{
+      const el=document.getElementById(id);
       if(el){ el.style.transition='opacity .3s'; el.style.opacity='0'; }
     });
-    document.getElementById(def.btnId)?.classList.remove('on');
+    document.getElementById(pathDefs[p].btnId)?.classList.remove('on');
   });
   activePath = 0;
 }
 
 function showPath(p){
-  // Ensure full graph is drawn first
   if(gStep < 4) step(5);
-
-  // If same path clicked again, toggle off
   if(activePath === p){ clearPaths(); return; }
-
   clearPaths();
-
   const def = pathDefs[p];
   activePath = p;
-
-  def.overlays.forEach((id, i) => {
-    const el = document.getElementById(id);
-    if(!el) return;
-    const len = el.getTotalLength ? el.getTotalLength() : 200;
-    el.style.strokeDasharray  = len;
-    el.style.strokeDashoffset = len;
-    el.style.opacity = '0';
-    void el.getBoundingClientRect();
-    el.style.transition = `stroke-dashoffset .55s ease ${i*.22}s, opacity .2s ease ${i*.22}s`;
-    el.style.strokeDashoffset = '0';
-    el.style.opacity = '1';
+  def.overlays.forEach((id, i)=>{
+    const el=document.getElementById(id); if(!el) return;
+    const len=el.getTotalLength?el.getTotalLength():200;
+    el.style.strokeDasharray=len; el.style.strokeDashoffset=len;
+    el.style.opacity='0'; void el.getBoundingClientRect();
+    el.style.transition=`stroke-dashoffset .55s ease ${i*.22}s, opacity .2s ease ${i*.22}s`;
+    el.style.strokeDashoffset='0'; el.style.opacity='1';
   });
-
   document.getElementById(def.btnId)?.classList.add('on');
 }
 
-function setBtn(id,state){
-  const b = document.getElementById(id);
-  if(!b) return;
-  b.classList.remove('active','done');
+function setBtn(id, state){
+  const b=document.getElementById(id); if(!b) return;
+  b.classList.remove('active','done','on');
   if(state) b.classList.add(state);
 }
 
