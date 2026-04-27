@@ -558,11 +558,11 @@ function updateStats(rows) {
 
   // Score distribution buckets: 0-200, 201-400, 401-600, 601-800, 801+
   const buckets = [
-    { lbl: '800+', min: 800, max: Infinity },
-    { lbl: '600', min: 600, max: 799 },
-    { lbl: '400', min: 400, max: 599 },
-    { lbl: '200', min: 200, max: 399 },
-    { lbl: '<200', min: 0,   max: 199 },
+    { lbl: '2500+', min: 2500, max: Infinity },
+    { lbl: '2000',  min: 2000, max: 2499 },
+    { lbl: '1500',  min: 1500, max: 1999 },
+    { lbl: '1000',  min: 1000, max: 1499 },
+    { lbl: '<1000', min: 0,    max: 999  },
   ];
   const maxCount = Math.max(1, ...buckets.map(b =>
     rows.filter(r => (r.puntaje ?? 0) >= b.min && (r.puntaje ?? 0) <= b.max).length

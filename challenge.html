@@ -511,10 +511,10 @@ html,body{
 
   <!-- Scoring preview -->
   <div class="score-grid">
-    <div class="sg-item"><div class="sg-val">×2.0</div><div class="sg-lbl">mult. al inicio</div></div>
-    <div class="sg-item"><div class="sg-val">×1.0</div><div class="sg-lbl">a los 2 minutos</div></div>
-    <div class="sg-item"><div class="sg-val">250 pts</div><div class="sg-lbl">arista T_→T3</div></div>
-    <div class="sg-item"><div class="sg-val neg">−75 pts</div><div class="sg-lbl">por error</div></div>
+    <div class="sg-item"><div class="sg-val">×4.0</div><div class="sg-lbl">mult. al inicio</div></div>
+    <div class="sg-item"><div class="sg-val">×1.0</div><div class="sg-lbl">después de 2 min</div></div>
+    <div class="sg-item"><div class="sg-val">+300</div><div class="sg-lbl">bonus sin errores</div></div>
+    <div class="sg-item"><div class="sg-val neg">−150 pts</div><div class="sg-lbl">por error</div></div>
   </div>
 
   <div class="inp-wrap">
@@ -606,10 +606,10 @@ html,body{
 
   <!-- Checklist strip -->
   <div id="gchecks">
-    <div class="gci" id="gci0"><span class="gco">○</span>T1→T3<span class="pts">250</span></div>
-    <div class="gci" id="gci1"><span class="gco">○</span>T2→T3<span class="pts">250</span></div>
-    <div class="gci" id="gci2"><span class="gco">○</span>T3→T4<span class="pts">200</span></div>
-    <div class="gci" id="gci3"><span class="gco">○</span>T4→T5<span class="pts">150</span></div>
+    <div class="gci" id="gci0"><span class="gco">○</span>T1→T3<span class="pts">200</span></div>
+    <div class="gci" id="gci1"><span class="gco">○</span>T2→T3<span class="pts">200</span></div>
+    <div class="gci" id="gci2"><span class="gco">○</span>T3→T4<span class="pts">160</span></div>
+    <div class="gci" id="gci3"><span class="gco">○</span>T4→T5<span class="pts">120</span></div>
   </div>
 </div>
 
@@ -630,7 +630,7 @@ html,body{
   <div class="result-stats">
     <div class="rstat"><div class="rv" id="r-time">00:00</div><div class="rl">Tiempo</div></div>
     <div class="rstat"><div class="rv" id="r-errs">0</div><div class="rl">Errores</div></div>
-    <div class="rstat"><div class="rv" id="r-mult">×2.0</div><div class="rl">Mult. tiempo</div></div>
+    <div class="rstat"><div class="rv" id="r-mult">×—</div><div class="rl">Mult. promedio</div></div>
   </div>
 
   <div id="rsub">Completaste el modelo G = (V, E) correctamente.</div>
@@ -692,14 +692,30 @@ const spinOn  = ()=> document.getElementById('spin').classList.add('on');
 const spinOff = ()=> document.getElementById('spin').classList.remove('on');
 
 /* ══════════════════════════════════════════════════════
-   SCORING
-   Base weights per edge (reflect difficulty of identification)
-   Time multiplier: 2.0 → 1.0 over 120 seconds
-   Error penalty: −75 pts each
+   SCORING SYSTEM
+   ─────────────────────────────────────────────────────
+/* ══════════════════════════════════════════════════════
+   SCORING — exponential time multiplier applied per edge
+   ──────────────────────────────────────────────────────
+   mult(t) = 1 + 3 × e^(-t/40)
+     t=0s  → ×4.0   t=15s → ×2.7
+     t=30s → ×1.74  t=45s → ×1.38
+     t=60s → ×1.22  t=90s → ×1.07
+
+   Per-edge score = floor(base × mult(t_at_click))
+   Perfect bonus (0 errors): +300 pts on completion
+   Error penalty: −150 pts each
+
+   Spread (perfect):
+     5s → ~2950  20s → ~2000  45s → ~1250  90s → ~1050
 ══════════════════════════════════════════════════════ */
-const EDGE_WEIGHTS = { 't1-t3':250, 't2-t3':250, 't3-t4':200, 't4-t5':150 };
-const ERROR_PENALTY = 75;
-const timeMult = s => Math.max(1.0, 2.0 - s / 120);
+const EDGE_BASE     = { 't1-t3':200, 't2-t3':200, 't3-t4':160, 't4-t5':120 };
+const PERFECT_BONUS = 300;
+const ERROR_PENALTY = 150;
+
+function edgeMult(t) {
+  return Math.max(1.0, 1 + 3 * Math.exp(-t / 40));
+}
 
 /* ══════════════════════════════════════════════════════
    GRAPH DEFINITIONS
@@ -934,12 +950,12 @@ function processEdge(from, to){
   if(CORRECT[key]!==undefined){
     /* ✅ CORRECT */
     added.add(key);
-    const base=EDGE_WEIGHTS[key];
-    const mult=timeMult(elapsed);
-    const pts=Math.floor(base*mult);
-    totalScore=Math.max(0,totalScore+pts);
+    const base = EDGE_BASE[key];
+    const mult = edgeMult(elapsed);
+    const pts  = Math.floor(base * mult);
+    totalScore = Math.max(0, totalScore + pts);
 
-    // Draw edge (no pre-rendered arrow before this point)
+    // Draw edge
     const idx=CORRECT[key];
     drawEdge(idx);
 
@@ -952,21 +968,26 @@ function processEdge(from, to){
       setTimeout(()=>{ lbl.style.transition='opacity .6s'; lbl.style.opacity='0'; },1600);
     }
 
-    // Bonus flash
     showBonus(`+${pts}`, false);
 
-    // Check item
     const ci=document.getElementById('gci'+idx);
     if(ci){ ci.classList.add('ok'); ci.querySelector('.gco').textContent='✓'; }
 
-    // Pulse destination
     pulseNode(to,true);
     animScore(totalScore);
-
-    // Progress
     document.getElementById('gbar-fill').style.width=(added.size/4*100)+'%';
 
-    if(added.size===4) finishGame();
+    if(added.size===4){
+      // Perfect bonus — awarded after all edges placed
+      if(errors===0){
+        totalScore += PERFECT_BONUS;
+        setTimeout(()=>{
+          showBonus(`+${PERFECT_BONUS} ✨`, false);
+          animScore(totalScore);
+        }, 400);
+      }
+      setTimeout(()=> finishGame(), errors===0 ? 900 : 400);
+    }
 
   } else {
     /* ❌ WRONG */
@@ -976,7 +997,7 @@ function processEdge(from, to){
     showBonus(`−${ERROR_PENALTY}`,true);
     animScore(totalScore);
     const it=document.getElementById('ginstr-text');
-    it.innerHTML='❌ <b>Esa arista no existe</b> — −75 pts';
+    it.innerHTML='❌ <b>Esa arista no existe</b> — −150 pts';
     it.classList.remove('sel');
     setTimeout(()=>{ it.innerHTML='Tocá un <b>vértice origen</b>'; },1400);
   }
@@ -1116,13 +1137,19 @@ function populateResult(finalScore, finalTime){
   document.getElementById('r-score-big').textContent=finalScore;
   document.getElementById('r-time').textContent=fmt(finalTime);
   document.getElementById('r-errs').textContent=errors;
-  document.getElementById('r-mult').textContent=`×${timeMult(0).toFixed(1)}`;
-  const detail=errors===0
-    ?`Sin errores · mult. ×${timeMult(0).toFixed(1)} al inicio`
-    :`${errors} error${errors>1?'es':''} (−${errors*ERROR_PENALTY} pts)`;
+  // Show the multiplier the player had at the START of the game (t=0 would be max,
+  // but show avg mult = score/base to give a sense of how fast they were)
+  const baseTotal = Object.values(EDGE_BASE).reduce((a,b)=>a+b,0);
+  const scoreWithoutBonus = finalScore - (errors===0 ? PERFECT_BONUS : 0) + (errors * ERROR_PENALTY);
+  const avgMult = (scoreWithoutBonus / baseTotal).toFixed(1);
+  document.getElementById('r-mult').textContent=`×${avgMult}`;
+
+  const detail = errors===0
+    ? `Sin errores · +${PERFECT_BONUS} pts bonus perfecto`
+    : `${errors} error${errors>1?'es':''} (−${errors*ERROR_PENALTY} pts)`;
   document.getElementById('r-score-detail').textContent=detail;
   document.getElementById('rsub').textContent=errors===0
-    ?'¡Modelo perfecto! Sin ningún error.'
+    ?'¡Modelo perfecto! Completado sin errores.'
     :`Completado con ${errors} error${errors>1?'es':''}.`;
   document.getElementById('savemsg').textContent='Guardando resultado…';
   document.getElementById('savemsg').className='';
